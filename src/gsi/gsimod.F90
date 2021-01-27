@@ -1450,12 +1450,6 @@
      call die(myname_,'Options l4dvar and reduce_diag not allowed together',99)
   end if 
 
-! Diagonal preconditioning is necessary for new bias correction
-  if(newpc4pred .and. .not. diag_precon)then
-    diag_precon=.true.
-    step_start=8.e-4_r_kind
-  end if
-
   if( (.not.l4dvar) .and. (.not.l4densvar) ) ljcdfi=.false.
  
   if (l4dvar.and.lsensrecompute) then

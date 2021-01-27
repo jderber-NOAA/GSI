@@ -31,8 +31,7 @@ subroutine bicg()
 use kinds,     only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: l4dvar, &
                      ladtest, lgrtest, lanczosave, ltcost, nwrvecs
-use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart, &
-                     diag_precon
+use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart
 use constants, only: zero,tiny_r_kind
 use mpimod,    only: mype
 use obs_sensitivity, only: lobsensmin, lobsensfc, lobsensincr, &
@@ -115,7 +114,7 @@ else
 
    end if
    ! Add potential additional preconditioner
-   if(diag_precon) call precond(grady)
+   call precond(grady)
 endif
 
 zg0=dot_product(gradx,grady,r_quad)
@@ -205,7 +204,7 @@ else ! not sensitivity run
    end if
 
 !  Add potential additional preconditioner 
-   if(diag_precon) call precond(grads)
+   call precond(grads)
 
 !  Update xhatsave
    do ii=1,xhat%lencv

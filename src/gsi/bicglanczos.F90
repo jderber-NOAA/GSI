@@ -66,7 +66,7 @@ use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: assignment(=)
 use mpimod  ,  only : mpi_comm_world
 use mpimod,    only: mype
-use jfunc   ,  only : iter, jiter, diag_precon,step_start
+use jfunc   ,  only : iter, jiter
 use gsi_4dvar, only : nwrvecs,l4dvar,lanczosave
 use gsi_4dvar, only : nsubwin, nobs_bins
 use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
@@ -246,7 +246,7 @@ call allocate_cv(gradw)
 call allocate_cv(dirx)
 call allocate_cv(diry)
 if(nprt>=1.and.ltcost_) call allocate_cv(gradf)
-if(diag_precon) call allocate_cv(dirw)
+call allocate_cv(dirw)
 
 !--- 'zeta' is an upper bound on the relative error of the gradient.
 
@@ -256,7 +256,7 @@ zreqrd = preduc
 ilen=xhat%lencv
 
 
-if(diag_precon) dirw=zero
+dirw=zero
 
 !$omp parallel do
 do jj=1,ilen
@@ -266,12 +266,10 @@ do jj=1,ilen
 end do
 !$omp end parallel do
 
-if(diag_precon) then
-  do jj=1,ilen
-     dirw%values(jj)=diry%values(jj)
-  end do 
-  call precond(diry)
-end if
+do jj=1,ilen
+   dirw%values(jj)=diry%values(jj)
+end do 
+call precond(diry)
 
 if(LMPCGL) then 
    dirx=zero
@@ -284,7 +282,7 @@ end if
 zg0=dot_product(gradx,grady,r_quad)
 if(zg0<tiny_r_kind) then ! this is unlikely to occur, expect when nobs=0
    ! clean up and ...
-   if(diag_precon) call deallocate_cv(dirw)
+   call deallocate_cv(dirw)
    if(nprt>=1.and.ltcost_) call deallocate_cv(gradf)
    call deallocate_cv(diry)
    call deallocate_cv(dirx)
@@ -387,7 +385,7 @@ inner_iteration: do iter=1,kmaxit
   endif
 
 ! Add potential additional preconditioner
-  if(diag_precon) call precond(grady)
+  call precond(grady)
 
 
 ! Second re-orthogonalization  
@@ -416,21 +414,17 @@ inner_iteration: do iter=1,kmaxit
   endif
  
 ! Update search direction
-  if(diag_precon) then
-    do jj=1,ilen
-       diry%values(jj)=dirw%values(jj)
-    enddo 
-  end if 
+  do jj=1,ilen
+     diry%values(jj)=dirw%values(jj)
+  enddo 
   do jj=1,ilen
     dirx%values(jj)=-grady%values(jj)+beta(iter)*dirx%values(jj)
     diry%values(jj)=-gradx%values(jj)+beta(iter)*diry%values(jj)
   end do
-  if(diag_precon) then
-    do jj=1,ilen
-       dirw%values(jj)=diry%values(jj)
-    end do 
-    call precond(diry)
-  end if
+  do jj=1,ilen
+     dirw%values(jj)=diry%values(jj)
+  end do 
+  call precond(diry)
 
 ! Diagnostics
   if(zgk < zero) then 
@@ -682,7 +676,7 @@ call deallocate_cv(gradw)
 call deallocate_cv(dirx)
 call deallocate_cv(diry)
 if(nprt>=1.and.ltcost_) call deallocate_cv(gradf)
-if(diag_precon) call deallocate_cv(dirw)
+call deallocate_cv(dirw)
 
 call inquire_cv
 

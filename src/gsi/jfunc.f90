@@ -470,6 +470,7 @@ contains
        success = .true.
 
     else
+       read(12)
        if(mype == 0) then
           write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE GUESS FILE, gesfile_in'
           write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
@@ -550,7 +551,7 @@ contains
 
     mm1=mype+1
     mypew=0
-    writebias=.true.
+    writebias=.false.
     if(writebias)then
        nxr=nrclen
        nxs=nsclen

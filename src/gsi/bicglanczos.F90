@@ -368,17 +368,18 @@ inner_iteration: do iter=1,kmaxit
   if(LMPCGL) then 
      call pcgprecond(gradx,grady)
   else 
-     call bkerror(gradx,grady)
+     grady=gradx
+     call bkerror(grady)
      ! If hybrid ensemble run, then multiply ensemble control variable a_en 
      !                                 by its localization correlation
      if(l_hyb_ens) then
      
        if(aniso_a_en) then
-     !   call anbkerror_a_en(gradx,grady)    !  not available yet
+     !   call anbkerror_a_en(grady)    !  not available yet
          write(6,*)' ANBKERROR_A_EN not written yet, program stops'
          stop
        else
-         call bkerror_a_en(gradx,grady)
+         call bkerror_a_en(grady)
        end if
  
      end if
@@ -899,18 +900,19 @@ do jk=1,NVCGLPC
 enddo
 
 !Apply B
-call bkerror(xcvx,ycvx)
+ycvx=xcvx
+call bkerror(ycvx)
 
 ! If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                 by its localization correlation
 if(l_hyb_ens) then
 
   if(aniso_a_en) then
-!   call anbkerror_a_en(xcvx,ycvx)    !  not available yet
+!   call anbkerror_a_en(ycvx)    !  not available yet
     write(6,*)' ANBKERROR_A_EN not written yet, program stops'
     call stop2(999)
   else
-    call bkerror_a_en(xcvx,ycvx)
+    call bkerror_a_en(ycvx)
   end if
 
 end if

@@ -98,18 +98,19 @@ call jgrad(xhat,yhat,zf0,gradx,lsavinc,nprt,myname)
 if(LMPCGL) then 
    call pcgprecond(gradx,grady)
 else 
-   call bkerror(gradx,grady)
+   grady=gradx
+   call bkerror(grady)
 
    ! If hybrid ensemble run, then multiply ensemble control variable a_en 
    !                                 by its localization correlation
    if(l_hyb_ens) then
 
      if(aniso_a_en) then
-   !   call anbkerror_a_en(gradx,grady)    !  not available yet
+   !   call anbkerror_a_en(grady)    !  not available yet
        write(6,*)' ANBKERROR_A_EN not written yet, program stops'
        call stop2 (999)
      else
-       call bkerror_a_en(gradx,grady)
+       call bkerror_a_en(grady)
      end if
 
    end if
@@ -187,18 +188,19 @@ if (lobsensfc) then
 
 else ! not sensitivity run
 
-   call bkerror(gradf,grads)
+   grads=gradf
+   call bkerror(grads)
 
 ! If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                 by its localization correlation
    if(l_hyb_ens) then
 
      if(aniso_a_en) then
-!      call anbkerror_a_en(gradf,grads)    !  not available yet
+!      call anbkerror_a_en(grads)    !  not available yet
        write(6,*)' ANBKERROR_A_EN not written yet, program stops'
        stop
      else
-       call bkerror_a_en(gradf,grads)
+       call bkerror_a_en(grads)
      end if
 
    end if

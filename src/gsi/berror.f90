@@ -590,6 +590,7 @@ contains
         do i=1,jpch_rad
            do j=1,npred
               ii=ii+1
+!             if (ostats(i)>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats(j,i)*varprd(ii))
               if (ostats(i)>zero) vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
               if (ostats(i)>20.0_r_kind) then
                  if (rstats(j,i)>zero) then
@@ -614,6 +615,7 @@ contains
                 if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
                 if (aircraft_t_bc) obs_count = ostats_t(1,i)
 
+!               if (obs_count>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>3.0_r_kind) then
                    varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))

@@ -131,7 +131,7 @@ subroutine pcgsoi()
        niter_no_qc,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        iorthomax
-  use gridmod, only: twodvar_regional
+  use gridmod, only: twodvar_regional,periodic
   use constants, only: zero,one,tiny_r_kind
   use mpimod, only: mype
   use mpl_allreducemod, only: mpl_allreduce
@@ -158,7 +158,6 @@ subroutine pcgsoi()
   use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
   use gsi_io, only: verbose
   use berror, only: vprecond
-
   use stpjomod, only: stpjo_setup
   implicit none
 
@@ -215,6 +214,7 @@ subroutine pcgsoi()
   small_step=1.e-2_r_kind*stp
   end_iter=.false.
   llouter=.false.
+  gnorm=zero
   gsave=zero
   read_success=.false.
   
@@ -364,14 +364,14 @@ subroutine pcgsoi()
            gnorm(3)=dprod(4)
         end if
      else
+! xdiff used as a temporary array
         do i=1,nclen
            xdiff%values(i)=vprecond(i)*gradx%values(i)
         end do
         dprod(2) = qdot_prod_sub(xdiff,grady)
         call mpl_allreduce(2,qpvals=dprod)
-        gnorm(2)=dprod(2)
-        gnorm(3)=dprod(2)
         if(print_diag_pcg) call prt_control_norms(grady,'grady')
+        gnorm(3)=dprod(2)
 
      end if
 
@@ -783,6 +783,49 @@ subroutine clean_
 ! call inquire_state
 
 end subroutine clean_
+ 
+subroutine periodic_(gradx)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    periodic_    ensure grad x is periodic
+!   prgmmr:      Todling
+!   
+! abstract: ensure gradx is periodic
+!
+! program history log:
+!   2021-02-02  Derber
+!
+!   input argument list:
+!      gradx - gradient of x
+!
+!   output argument list:
+!      gradx - gradient of x
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use gridmod, only: nlat,nlon
+  use general_commvars_mod, only: s2g_cv
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  implicit none
+
+  type(control_vector),intent(inout) :: gradx
+  real(r_kind),dimension(nlat*nlon*s2g_cv%nlevs_alloc)::workcv
+
+! If dealing with periodic (sub)domain, gather full domain grids,
+! account for periodicity, and redistribute to subdomains.  This
+! only needs to be done when running with a single mpi task and
+! then only for array gradx.
+  do ii=1,nsubwin
+     call general_sub2grid(s2g_cv,gradx%step(ii)%values,workcv)
+     call general_grid2sub(s2g_cv,workcv,gradx%step(ii)%values)
+  end do
+
+
+end subroutine periodic_
 
 subroutine multb(lanlerr,vec1,vec2)
 !$$$  subprogram documentation block
@@ -813,26 +856,30 @@ subroutine multb(lanlerr,vec1,vec2)
   use control_vectors, only: control_vector
   implicit none
   
-  type(control_vector),intent(inout) :: vec1,vec2
+  type(control_vector),intent(inout) :: vec1
+  type(control_vector),intent(inout) :: vec2
   logical             ,intent(in   ) :: lanlerr
 
+     if(periodic)call periodic_(gradx)
+!   start by setting vec2=vec1 and then operate on vec2 (unless gram_schmidt)
+     if(.not. lanlerr .or. .not. lgschmidt)vec2=vec1
 !    Multiply by background error
      if(anisotropic) then
-        call anbkerror(vec1,vec2)
+        call anbkerror(vec2)
         if(lanlerr .and. lgschmidt) call mgram_schmidt(vec1,vec2)
      else
-        call bkerror(vec1,vec2)
+        call bkerror(vec2)
      end if
 
 !    If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                    by its localization correlation
      if(l_hyb_ens) then
         if(aniso_a_en) then
-    !      call anbkerror_a_en(gradx,grady)    !  not available yet
+    !      call anbkerror_a_en(grady)    !  not available yet
            write(6,*)' ANBKERROR_A_EN not written yet, program stops'
            stop
         else
-           call bkerror_a_en(vec1,vec2)
+           call bkerror_a_en(vec2)
         end if
 
      end if

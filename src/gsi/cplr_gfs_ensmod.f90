@@ -331,7 +331,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
 
 ! transfer en_loc to en_loc3
 
-! Look to thread here OMP
+!$omp parallel do  schedule(dynamic,1) private(n,k,jj,j,ii,i) 
     do n=1,n_ens
        do k=1,nc2d+nc3d*nsig
           jj=0
@@ -345,6 +345,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
           enddo
        enddo
     enddo
+    deallocate(en_loc)
+    
 
 end subroutine get_user_ens_gfs_fastread_
 
@@ -739,9 +741,11 @@ subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens)
          endif
          ipe=ipe+jskip
       enddo
-      do n=1,n_ens
-         if(mype==0) write(6,'(2(a,1x,i5,1x))') 'reading ensemble member', n,  'on pe', io_pe0(n)
-      enddo
+      if(mype==0)then
+         do n=1,n_ens
+            write(6,'(2(a,1x,i5,1x))') 'reading ensemble member', n,  'on pe', io_pe0(n)
+         enddo
+      end if
 
       do n=1,n_ens
          if(mype==io_pe0(n)) then

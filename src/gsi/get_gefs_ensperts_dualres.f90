@@ -239,6 +239,7 @@ subroutine get_gefs_ensperts_dualres
 
           if ( trim(cvars3d(ic3)) == 'q' ) then
              if (.not.q_hyb_ens) then !use RH
+!$omp parallel do schedule(dynamic,1) private(i,j,k,rh)
                 do k=1,km
                    do j=1,jm
                       do i=1,im
@@ -369,14 +370,15 @@ subroutine get_gefs_ensperts_dualres
 
 ! Convert ensemble members to perturbations
 
+!$omp parallel do schedule(dynamic,1) private(n,i,ic3,ipic,k,j)
      do n=1,n_ens
         do i=1,nelen
            en_perts(n,m)%valuesr4(i)=en_perts(n,m)%valuesr4(i)-en_bar(m)%values(i)
         end do
         if(.not. q_hyb_ens) then
           do ic3=1,nc3d
-             ipic=ipc3d(ic3)
              if(trim(cvars3d(ic3)) == 'q' .or. trim(cvars3d(ic3)) == 'Q')then
+                ipic=ipc3d(ic3)
                 do k=1,km
                    do j=1,jm
                       do i=1,im

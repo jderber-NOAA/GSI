@@ -406,6 +406,7 @@ subroutine pcgsoi()
         end do
      else
 !    If previous solution available, transfer into local arrays.
+!    Fill with grady first so that if we read in part of diry there is something
         do i=1,nclen
            diry%values(i)=-vprecond(i)*gradx%values(i)
         end do

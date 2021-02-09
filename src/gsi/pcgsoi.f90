@@ -179,7 +179,7 @@ subroutine pcgsoi()
   real(r_kind),dimension(3):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),fjcostnew(4),zgend,zfend
   real(r_kind) :: fjcost_e
-  type(control_vector) :: xhat,gradx,grady,dirx,diry,ydiff,xdiff
+  type(control_vector) :: gradx,grady,dirx,diry,ydiff,xdiff
   type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
   type(gsi_bundle) :: eval(ntlevs_ens)
   type(gsi_bundle) :: mval(nsubwin)
@@ -249,6 +249,10 @@ subroutine pcgsoi()
         cglworkhat(ii)=zero
      END DO
   end if
+  do ii=1,nobs_bins
+     sval(ii)=zero
+  end do
+  sbias=zero
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
@@ -267,11 +271,12 @@ subroutine pcgsoi()
      do ii=1,nobs_bins
         rval(ii)=zero
      end do
+     rbias=zero
      gradx=zero
 
      llprt=(mype==0).and.(iter<=1)
 !    Control to state
-     call c2s(xhat,sval,sbias,llprt,.true.)
+!    call c2s(xhat,sval,sbias,llprt,.true.)
 
      if (iter<=1 .and. print_diag_pcg) then
         do ii=1,nobs_bins
@@ -417,10 +422,14 @@ subroutine pcgsoi()
 
 !    4. Calculate stepsize and update solution
 !    Convert search direction from control space to physical space
+     do ii=1,nobs_bins
+        rval(ii)=zero
+     end do
+     rbias=zero
      call c2s(dirx,rval,rbias,.false.,.true.)
 
 !    Calculate stepsize
-     call stpcalc(stp,sval,sbias,xhat,dirx,rval,rbias, &
+     call stpcalc(stp,sval,sbias,dirx,rval,rbias, &
                   diry,penalty,penaltynew,fjcost,fjcostnew,end_iter)
 
      if (lanlerr) call writeout_gradients(gradx,grady,niter(jiter),stp,b,mype)
@@ -527,7 +536,7 @@ subroutine pcgsoi()
 ! Calculate adjusted observation error factor
   if( oberror_tune .and. (.not.l4dvar) ) then
      if (mype == 0) write(6,*) 'PCGSOI:  call penal for obs perturbation'
-     call c2s(xhat,sval,sbias,.false.,.false.)
+!    call c2s(xhat,sval,sbias,.false.,.false.)
 
      call penal(sval(1))
      xhatsave=zero
@@ -541,7 +550,7 @@ subroutine pcgsoi()
   if (l_tlnmc .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
   llprt=(mype==0)
-  call c2s(xhat,sval,sbias,llprt,.false.)
+! call c2s(xhat,sval,sbias,llprt,.false.)
 
   if(print_diag_pcg)then
 
@@ -697,7 +706,6 @@ subroutine init_
   implicit none
 
 ! Allocate local variables
-  call allocate_cv(xhat)
   call allocate_cv(gradx)
   call allocate_cv(grady)
   call allocate_cv(dirx)
@@ -724,7 +732,6 @@ subroutine init_
   diry=zero
   ydiff=zero
   xdiff=zero
-  xhat=zero
 
 
 end subroutine init_
@@ -759,7 +766,6 @@ subroutine clean_
   if (.not.l4dvar) call obsdiags_reset(obsdiags_keep=lobsdiagsave)   ! replacing destroyobs()
 
 ! Release state-vector memory
-  call deallocate_cv(xhat)
   call deallocate_cv(gradx)
   call deallocate_cv(grady)
   call deallocate_cv(dirx)

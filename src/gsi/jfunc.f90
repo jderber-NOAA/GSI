@@ -438,6 +438,7 @@ contains
                 diry%values(i)=real(yhatsave_r4(i),r_kind)
              end do
           else
+             read(12)
              if(mype == 0) then
                 write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE RADIANCE COMPONENT in GESFILE, gesfile_in'
                 write(6,*) 'READ_GUESS_SOLUTION:  nrclen: input,current=',nxsclen,nsclen,nxpclen,npclen
@@ -605,7 +606,7 @@ contains
     if(mype==mypew)then
        close(51)
        write(6,*)'WRITE_GUESS_SOLUTION:  write guess solution for ',&
-                  iadate,nlat,nlon,nsig,nrclen
+                  iadate,nlat,nlon,nsig,nxr,nxs,nxp
     endif
 
     return

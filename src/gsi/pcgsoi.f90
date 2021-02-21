@@ -128,7 +128,7 @@ subroutine pcgsoi()
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution,step_start, &
-       niter_no_qc,print_diag_pcg,lgschmidt
+       niter_no_qc,print_diag_pcg
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        iorthomax
   use gridmod, only: twodvar_regional,periodic
@@ -148,8 +148,6 @@ subroutine pcgsoi()
   use bias_predictors, only: update_bias_preds
   use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
   use timermod, only: timer_ini,timer_fnl
-  use projmethod_support, only: init_mgram_schmidt, &
-                                mgram_schmidt,destroy_mgram_schmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
@@ -233,7 +231,6 @@ subroutine pcgsoi()
   call init_
   if(print_diag_pcg)call prt_guess('guess')
 
-  if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
   nlnqc_iter=.false.
   call stpjo_setup(nobs_bins)
 
@@ -531,7 +528,6 @@ subroutine pcgsoi()
      enddo
      deallocate(cglworkhat)
   end if
-  if (lanlerr .and. lgschmidt) call destroy_mgram_schmidt
 
 ! Calculate adjusted observation error factor
   if( oberror_tune .and. (.not.l4dvar) ) then
@@ -857,7 +853,6 @@ subroutine multb(lanlerr,vec1,vec2)
 !
 !$$$ end documentation block
 
-  use jfunc, only:lgschmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
   use hybrid_ensemble_isotropic, only: bkerror_a_en
   use control_vectors, only: control_vector
@@ -867,13 +862,12 @@ subroutine multb(lanlerr,vec1,vec2)
   type(control_vector),intent(inout) :: vec2
   logical             ,intent(in   ) :: lanlerr
 
-     if(periodic)call periodic_(gradx)
+     if(periodic)call periodic_(vec1)
 !   start by setting vec2=vec1 and then operate on vec2 (unless gram_schmidt)
-     if(.not. lanlerr .or. .not. lgschmidt)vec2=vec1
+     vec2=vec1
 !    Multiply by background error
      if(anisotropic) then
         call anbkerror(vec2)
-        if(lanlerr .and. lgschmidt) call mgram_schmidt(vec1,vec2)
      else
         call bkerror(vec2)
      end if
@@ -915,7 +909,6 @@ subroutine c2s(hat,val,bias,llprt,ltest)
 !
 !$$$ end documentation block
 
-  use jfunc, only:lgschmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens
   use hybrid_ensemble_isotropic, only: bkerror_a_en
   use control_vectors, only: control_vector
@@ -982,7 +975,6 @@ subroutine c2s_ad(hat,val,bias,llprt)
 !
 !$$$ end documentation block
 
-  use jfunc, only:lgschmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens
   use hybrid_ensemble_isotropic, only: bkerror_a_en
   use control_vectors, only: control_vector

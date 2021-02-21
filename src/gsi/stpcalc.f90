@@ -924,6 +924,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   do i=1,nrclen
      sbias%values(i)=sbias%values(i)+stpinout*dbias%values(i)
   end do
+!$omp parallel do schedule(dynamic,1) private(i,ii)
   do ii=1,nobs_bins
      do i=1,sval(ii)%ndim
         sval(ii)%values(i)=sval(ii)%values(i)+stpinout*dval(ii)%values(i)

@@ -28,8 +28,6 @@ module jfunc
 !                      - defer GMAO diurnal bias correction changes.
 !   2008-12-01  todling - bring in Tremolet's changes
 !   2009-06-01  pondeca,sato - add tsensible initialization. used in 2dvar mode only
-!   2009-06-01  pondeca - add lgschmidt initalization. this variable controls the B-norm
-!                         re-orthogonalization of the gradx vectors in 2dvar mode
 !   2010-02-20  parrish - add change to get correct nval_len when using hybrid ensemble with dual resolution.
 !   2010-02-20  zhu     - add nrf_levb and nrf_leve
 !   2010-03-23  derber  - remove rhgues (not used)
@@ -89,10 +87,6 @@ module jfunc
 !   def print_diag_pcg - option for turning on GMAO diagnostics in pcgsoi
 !   def tsensible  - option to use sensible temperature as the control variable. applicable
 !                    to the 2dvar mode only
-!   def lgschmidt  - option to re-biorthogonalyze the gradx and grady vectors during the
-!                    inner iteration using the modified gram-schmidt method. useful for
-!                    estimating the analysis error via the projection method. 
-!
 !   def ntracer    - total number of tracer variables
 !   def nrft       - total number of time tendencies for upper level control variables
 !   def nrft_      - order of time tendencies for 3d control variables
@@ -137,13 +131,13 @@ module jfunc
   public :: diurnalbc,bcoption,biascor,nval2d,xhatsave,first
   public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,nval_levs_ens,iout_iter,nclen
   public :: factql,factqi,factqr,factqs,factqg  
-  public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
+  public :: niter_no_qc,print_diag_pcg,penorig,gnormorig,iguess
   public :: factg,factv,factp,factl,R_option,factw10m,facthowv,factcldch,diag_precon,step_start
   public :: pseudo_q2
   public :: varq
   public :: cnvw_option
 
-  logical first,last,switch_on_derivatives,tendsflag,print_diag_pcg,tsensible,lgschmidt,diag_precon
+  logical first,last,switch_on_derivatives,tendsflag,print_diag_pcg,tsensible,diag_precon
   logical clip_supersaturation,R_option
   logical pseudo_q2
   logical cnvw_option
@@ -202,7 +196,6 @@ contains
     tendsflag=.false.
     print_diag_pcg=.false.
     tsensible=.false.
-    lgschmidt=.false.
     diag_precon=.false.
     step_start=1.e-4_r_kind
     R_option=.false.

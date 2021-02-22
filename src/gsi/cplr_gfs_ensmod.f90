@@ -168,7 +168,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     use mpimod, only: mpi_comm_world,ierror,mpi_real8,mpi_integer4,mpi_max
     use kinds, only: i_kind,r_single,r_kind
     use constants, only: zero
-    use general_sub2grid_mod, only: sub2grid_info
+    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_destroy_info
     use gsi_4dvar, only: ens_fhrlevs
     use gsi_bundlemod, only: gsi_bundle
     use hybrid_ensemble_parameters, only: n_ens,grd_ens
@@ -207,8 +207,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     real(r_kind),allocatable,dimension(:,:,:) :: en_loc3
     integer(i_kind),allocatable,dimension(:) :: m_cvars2dw,m_cvars3dw
     integer(i_kind) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
+    type(sub2grid_info) :: grd3d
 
-    iret = 0
 
     nlat=grd_ens%nlat
     nlon=grd_ens%nlon
@@ -260,11 +260,6 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     write(filename,22) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
 22  format(a,'sigf',i2.2,'_ens_mem',i3.3)
 
-    if (cnvw_option) then
-       write(filenamesfc,23) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
-23     format(a,'sfcf',i2.2,'_ens_mem',i3.3)
-    end if
-
     allocate(m_cvars2dw(nc2din),m_cvars3dw(nc3din))
     m_cvars2dw=-999
     m_cvars3dw=-999
@@ -276,6 +271,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     if ( mas == mae ) then
        if ( use_gfs_nemsio ) then
           if (cnvw_option) then
+             write(filenamesfc,23) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
+23           format(a,'sfcf',i2.2,'_ens_mem',i3.3)
              call parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
                                             ias,jas,mas, &
                                             iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
@@ -297,6 +294,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
     call mpi_allreduce(m_cvars3dw,m_cvars3d,nc3d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
 
+    deallocate(m_cvars2dw,m_cvars3dw)
 ! scatter to subdomains:
 
     allocate(en_loc(ibsm:ibemz,jbsm:jbemz,kbsm:kbemz,mbsm:mbemz))
@@ -310,6 +308,9 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 ! transfer en_loc to en_loc3 then to atm_bundle
 
     allocate(en_loc3(lat2in,lon2in,nc2d+nc3d*nsig))
+
+    iret = 0
+    call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
     do n=1,n_ens
        do k=1,nc2d+nc3d*nsig
           jj=0
@@ -322,15 +323,15 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
              enddo
           enddo
        enddo
-       call move2bundle_(grd,en_loc3,atm_bundle(n),m_cvars2d,m_cvars3d,iret)
+       call move2bundle_(grd3d,en_loc3,atm_bundle(n),m_cvars2d,m_cvars3d,iret)
     enddo
-    deallocate(en_loc3)
-    deallocate(en_loc)
+    call general_sub2grid_destroy_info(grd3d,grd)
+    deallocate(en_loc,en_loc3)
     
 
 end subroutine get_user_ens_gfs_fastread_
 
-subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
+subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -362,7 +363,7 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
     use kinds, only: i_kind,r_kind,r_single
     use constants, only: zero,one,two,fv
-    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_destroy_info
+    use general_sub2grid_mod, only: sub2grid_info
     use hybrid_ensemble_parameters, only: en_perts
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -373,8 +374,8 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     implicit none
 
     ! Declare passed variables
-    type(sub2grid_info), intent(in   ) :: grd
-    real(r_kind),      intent(inout) :: en_loc3(grd%lat2,grd%lon2,nc2d+nc3d*grd%nsig)
+    type(sub2grid_info), intent(in   ) :: grd3d
+    real(r_kind),      intent(inout) :: en_loc3(grd3d%lat2,grd3d%lon2,nc2d+nc3d*grd3d%nsig)
     type(gsi_bundle),    intent(inout) :: atm_bundle
     integer(i_kind),     intent(in   ) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
     integer(i_kind),     intent(  out) :: iret
@@ -390,10 +391,11 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     !real(r_kind),pointer,dimension(:,:) :: sst
     real(r_kind),pointer,dimension(:,:,:) :: u,v,tv,q,oz,cwmr
     real(r_kind),pointer,dimension(:,:,:) :: qlmr,qimr,qrmr,qsmr,qgmr   
-    type(sub2grid_info) :: grd3d
     real(r_kind),parameter :: r0_001 = 0.001_r_kind
 
-    km = en_perts(1,1)%grid%km
+
+!--- now update halo values of all variables using general_sub2grid
+    call update_halos_(grd3d,en_loc3)
 
     ! Check hydrometeors in control variables 
     icw=getindex(cvars3d,'cw')
@@ -431,16 +433,14 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
        return
     endif
 
-!--- now update halo values of all variables using general_sub2grid
-    call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
-    call update_halos_(grd3d,en_loc3)
-    call general_sub2grid_destroy_info(grd3d,grd)
 
     do m=1,nc2d
 !      convert ps from Pa to cb
        if(trim(cvars2d(m))=='ps')   ps=r0_001*en_loc3(:,:,m_cvars2d(m))
 !      if(trim(cvars2d(m))=='sst') sst=en_loc3(:,:,m_cvars2d(m)) !no sst for now
     enddo
+
+    km = en_perts(1,1)%grid%km
 !$omp parallel do  schedule(dynamic,1) private(m) 
     do m=1,nc3d
        if(trim(cvars3d(m))=='sf')then

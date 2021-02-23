@@ -1052,8 +1052,8 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          temp2=zero
       endif
 
-      m_cvars2d(k2)=kf+1
       kf=kf+1
+      m_cvars2d(k2)=kf
       jj=jas-1
       do j=1,nlon
          jj=jj+1

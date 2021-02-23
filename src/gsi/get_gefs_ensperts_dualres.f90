@@ -76,10 +76,6 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind),pointer,dimension(:,:,:) :: q
 ! real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
   real(r_kind),pointer,dimension(:,:,:):: p3
-  real(r_kind),pointer,dimension(:,:):: p2
-  real(r_single),pointer,dimension(:,:,:):: w3
-  real(r_single),pointer,dimension(:,:):: w2
-  real(r_kind),pointer,dimension(:,:,:):: x3
   real(r_kind),pointer,dimension(:,:):: x2
   type(gsi_bundle),allocatable,dimension(:) :: en_read
   type(gsi_bundle):: en_bar

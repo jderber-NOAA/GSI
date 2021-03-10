@@ -334,7 +334,7 @@ subroutine pcgsoi()
      end if
 
 
-!    2. Calculate new norm of gradients and factors going into b calculation
+!    3. Calculate new norm of gradients and factors going into b calculation
      dprod(1) = qdot_prod_sub(gradx,grady)
      if(iter > 0)then
         gsave=gnorm(3)
@@ -381,7 +381,7 @@ subroutine pcgsoi()
      if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
 
 
-!    3. Calculate b and new search direction
+!    4. Calculate b and new search direction
      b=zero
      if (.not. restart .or. iter > 0) then
         if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
@@ -417,7 +417,7 @@ subroutine pcgsoi()
         call multb(lanlerr,diry,dirx)
      endif
 
-!    4. Calculate stepsize and update solution
+!    5. Calculate stepsize and update solution
 !    Convert search direction from control space to physical space
      do ii=1,nobs_bins
         rval(ii)=zero
@@ -431,7 +431,7 @@ subroutine pcgsoi()
 
      if (lanlerr) call writeout_gradients(gradx,grady,niter(jiter),stp,b,mype)
 
-!    5. Diagnostic calculations
+!    6. Diagnostic calculations
      if (iter==0) then
         if(jiter==jiterstart .or. oberror_tune) then
            gnormorig=gnorm(1)
@@ -473,7 +473,7 @@ subroutine pcgsoi()
 9992 format(A,2(1X,I3),4(1X,ES25.18),1x,A6)
 9993 format(A,2(1X,I3),2(1X,ES25.18),A1)
 
-!    6. Check for convergence or failure of algorithm
+!    7. Check for convergence or failure of algorithm
      if(gnormx < converge .or. penalty < converge  .or.  &
         penx >= pennorm .or. end_iter)then
 

@@ -210,6 +210,8 @@ subroutine glbsoi
 ! Set cost function
   call create_jfunc
 
+  call isetprm('MXMSGL',400000)
+  call isetprm('MAXSS',250000)
 ! Read observations and scatter
   call observer_set
 

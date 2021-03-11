@@ -99,7 +99,7 @@
       ntest=0
       nrtmax=0                       ! # rpts to print per msg type (0=all)
 
-      call closbf(lunin)
+!     call closbf(lunin)
       open(lunin,file=trim(infile),form='unformatted')
       call mesgbc(lunin,msgt,icomp)
       call openbf(lunin,'IN',lunin)

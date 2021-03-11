@@ -302,7 +302,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) kl,k1,k2,k1_ps,k1_q,k1_t,k1_uv,k1_pw,k2_q,k2_t,k2_uv,k2_pw,k2_ps
   integer(i_kind) itypex,itypey
   integer(i_kind) minobs,minan
-  integer(i_kind) ntb,ntmatch,ncx
+  integer(i_kind) ntb,ntmatch,ncx,istation
   integer(i_kind) nmsg                ! message index
   integer(i_kind) idx                 ! order index of aircraft temperature bias
   integer(i_kind) tcamt_qc,lcbas_qc
@@ -615,7 +615,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   ncount_ps=0;ncount_q=0;ncount_t=0;ncount_uv=0;ncount_pw=0
 
 ! Open, then read date from bufr data
-  call closbf(lunin)
+! call closbf(lunin)
   open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
@@ -1108,6 +1108,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if (sfctype) then
               call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
               call ufbint(lunin,r_sprvstg,1,1,iret,sprvstr)
+           else if(kx == 120 .and. tob .or. qob .or. psob)then
+              c_prvstg=cspval
+              c_sprvstg='PREP'
+           else if(kx == 220 .and. uvob)then
+              c_prvstg=cspval
+              c_sprvstg='PREP'
            else
               c_prvstg=cspval
               c_sprvstg=cspval
@@ -2103,6 +2109,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
 
+                 istation=rstation_id
 !             Winds 
               else if(uvob) then 
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
@@ -2301,6 +2308,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(14,iout),cdata_all(15,iout),cdata_all(11,iout),cdata_all(1,iout))
 
+                 if(kx == 120)write(6,*) 'prep',k,c_station_id,(cdata_all(i,iout),i=1,20)
 !             Specific humidity 
               else if(qob) then
                  qmaxerr=emerr
@@ -2908,8 +2916,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 !   End of bufr read loop
      enddo loop_msg
-!    Close unit to bufr file
-     call closbf(lunin)
 
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
@@ -2926,6 +2932,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   enddo loop_convinfo! loops over convinfo entry matches
   deallocate(lmsg,tab,nrep)
+! Close unit to bufr file
+  call closbf(lunin)
 
 ! Apply hilbert curve for cross validation if requested
 
@@ -3152,7 +3160,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_PREPBUFR:  ',&
      'nvtest,vdisterrmax=',ntest,vdisterrmax
 
-  call closbf(lunin)
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
 
   close(lunin)

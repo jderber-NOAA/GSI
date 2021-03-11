@@ -861,7 +861,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         end do
 
 !       Reopen unit to bufr file
-        call closbf(lunin)
+!       call closbf(lunin)
         open(lunin,file=trim(infile),form='unformatted')
         call openbf(lunin,'IN',lunin)
         call datelen(10)

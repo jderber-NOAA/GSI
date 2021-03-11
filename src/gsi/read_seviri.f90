@@ -190,7 +190,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   endif
 
 ! Open bufr file.
-  call closbf(lnbufr)
+! call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)

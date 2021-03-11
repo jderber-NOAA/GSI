@@ -231,7 +231,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !!  go through the satedump to find out how many subset to process
 !** Open and read data from bufr data file
 
-  call closbf(lunin)
+! call closbf(lunin)
   open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
@@ -724,7 +724,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      enddo loop_msg
 
 !    Close unit to bufr file
-     call closbf(lunin)
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
         deallocate(presl_thin)
@@ -733,6 +732,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
+  call closbf(lunin)
   deallocate(lmsg,nrep,tab)
  
 

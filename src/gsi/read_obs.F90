@@ -1252,10 +1252,15 @@ subroutine read_obs(ndata,mype)
                end if
             end do
           end if
-          if(obstype == 'rw')then
+          if(dfile(i) == 'uprair')then
+             use_prsl_full=.true.
+             use_hgtl_full = .true.
+             if(belong(i))use_hgtl_full_proc=.true.
+             if(belong(i))use_prsl_full_proc=.true.
+          else if(obstype == 'rw')then
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
-           else if(obstype == 'dbz')then
+          else if(obstype == 'dbz')then
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
           end if
@@ -1389,6 +1394,10 @@ subroutine read_obs(ndata,mype)
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                                     prsl_full,nobs_sub1(1,i))
                   string='READ_FL_HDOB'
+                else if (index(infile,'uprair') /=0)then
+                   call read_hdraob(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full,hgtl_full,nobs_sub1(1,i),read_rec(i))
+                   string='READ_UPRAIR'
                 else
                    call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                         prsl_full,nobs_sub1(1,i),read_rec(i))
@@ -1453,6 +1462,10 @@ subroutine read_obs(ndata,mype)
                      prsl_full,nobs_sub1(1,i))
                   string='READ_SATWND'
 !             Process oscat winds which seperate from prepbufr
+                else if (index(infile,'uprair') /=0)then
+                   call read_hdraob(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full,hgtl_full,nobs_sub1(1,i),read_rec(i))
+                   string='READ_UPRAIR'
                 elseif ( index(infile,'oscatbufr') /=0 ) then
                   call read_sfcwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full,nobs_sub1(1,i))
@@ -1466,6 +1479,10 @@ subroutine read_obs(ndata,mype)
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                        prsl_full,nobs_sub1(1,i))
                   string='READ_FL_HDOB'
+                else if (index(infile,'uprair') /=0)then
+                   call read_hdraob(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full,nobs_sub1(1,i),read_rec(i))
+                   string='READ_UPRAIR'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full,nobs_sub1(1,i),read_rec(i))
@@ -1836,8 +1853,6 @@ subroutine read_obs(ndata,mype)
                endif
 
           end if ditype_select
-
-!         Close unit to data file
 
 !         Accumulate data counts on "root" task
           if (mype_sub(mm1,i)==mype_root) then

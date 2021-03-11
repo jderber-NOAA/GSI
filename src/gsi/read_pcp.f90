@@ -147,7 +147,7 @@
 
 
 ! Open and read the bufr data
-  call closbf(lnbufr)
+! call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)

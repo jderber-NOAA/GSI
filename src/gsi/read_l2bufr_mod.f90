@@ -495,7 +495,7 @@ contains
        nthisbins=6*nthisrad
     end if
 ! reopen and reread the file for data this time
-    call closbf(inbufr)
+!   call closbf(inbufr)
     open(inbufr,file=infile,form='unformatted')
     call openbf(inbufr,'IN',inbufr)
     allocate(bins(6,nthisrad,num_radars_0),ibins(nthisrad,num_radars_0))

@@ -552,6 +552,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      z_height = .false.
      if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
      if ((itype==261) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
+     if (itype == 218) z_height = .true.
 
 
 !    Process observations reported with height differently than those
@@ -590,7 +591,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !       For observation reported with geometric height above sea level,
 !       convert geopotential to geometric height.
 
-        if (((itype>=223 .and. itype<=228) .or. sfc_data) .and. .not.twodvar_regional) then
+        if (((itype>=223 .and. itype<=228) .or. itype == 218 .or. sfc_data) .and. .not.twodvar_regional) then
 !          Convert geopotential height at layer midpoints to geometric 
 !          height using equations (17, 20, 23) in MJ Mahoney's note 
 !          "A discussion of various measures of altitude" (2001).  

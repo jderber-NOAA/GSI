@@ -193,7 +193,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 
 ! Open bufr file.
-  call closbf(lnbufr)
+! call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)

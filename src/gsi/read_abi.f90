@@ -169,7 +169,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   if (.not.assim) val_abi=zero
 
 ! Open bufr file.
-  call closbf(lnbufr)
+! call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)

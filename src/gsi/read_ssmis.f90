@@ -390,7 +390,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Read in data from bufr into arrays first      
 ! Open unit to satellite bufr file
   iobs=1
-  call closbf(lnbufr)
+! call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted',status='old',err=500)  
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)

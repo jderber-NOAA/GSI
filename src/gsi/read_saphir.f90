@@ -283,7 +283,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 
 ! Reopen unit to satellite bufr file
   iob=1
-  call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted',status = 'old',err = 500)
 
   call openbf(lnbufr,'IN',lnbufr)

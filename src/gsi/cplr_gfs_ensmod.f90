@@ -705,22 +705,17 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
 
 !  obtain r4lats,r4lons,rlats,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
 
-   allocate(rlats(latb+2),rlons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
-   call nemsio_getfilehead(gfile,lat=r4lats,iret=iret)
+   allocate(rlons(lonb),r4lons(lonb*latb))
    call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)
-   do j=1,latb
-      rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
-   enddo
    do j=1,lonb
       rlons(j)=deg2rad*r4lons(j)
    enddo
-   deallocate(r4lats,r4lons)
-   rlats(1)=-half*pi
-   rlats(latb+2)=half*pi
+   deallocate(r4lons)
    do j=1,lonb
       clons(j)=cos(rlons(j))
       slons(j)=sin(rlons(j))
    enddo
+   deallocate(rlons)
 
    fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
    odate(1) = idate(4)  !hour

@@ -288,7 +288,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
   integer(i_kind) lunin,i,maxobs,j,idomsfc,it29,nmsgmax,mxtb
-  integer(i_kind) kk,klon1,klat1,klonp1,klatp1,kxx
+  integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nc,nx,isflg,ntread,itx,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) metarcldlevs,metarwthlevs,cldseqlevs,cld2seqlevs
@@ -389,7 +389,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   equivalence(r_sprvstg(1,1),c_sprvstg) 
   equivalence(rstation_id,c_station_id)
   equivalence(rstation_id,sidchr)
-  equivalence(hdr(1),kxx)
 
 !  data statements
   data hdstr  /'SID XOB YOB DHR TYP ELV SAID T29'/
@@ -648,7 +647,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !       Extract type information
         call ufbint(lunin,hdr,4,1,iret,hdstr2)
-        kx=kxx
+        kx=hdr(1)
         if (aircraft_t_bc .and. acft_profl_file) then
            kx0=kx
            if (.not. uvob) then

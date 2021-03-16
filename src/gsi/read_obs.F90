@@ -60,6 +60,7 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
 !   machine:  Linux-cluster
 !
 !$$$  end documentation block
+!
 
   use kinds, only: i_kind,i_llong
 

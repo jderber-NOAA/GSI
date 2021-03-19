@@ -1,4 +1,45 @@
-subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
+module hdraobmod
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   obsmod
+!   prgmmr: derber      org: np23                date: 2003-09-25
+!
+! abstract: This module contains variables and arrays pertinent for
+!           observational data.
+!
+! program history log:
+!   2021-03-18 derber
+!
+!    def nhdps    - number of high resolution surface pressure stations
+!    def nhduv    - number of high resolution uv stations
+!    def nhdt     - number of high resolution temperature stations
+!    def nhdq     - number of high resolution moisture stations
+!    def hdpslist - list of high resolution surface pressure stations
+!    def hduvlist - list of high resolution uv stations
+!    def hdtlist  - list of high resolution temperature stations
+!    def hdqlist  - list of high resolution moisture stations
+!
+! attributes:
+!   langauge: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use kinds, only: i_kind
+  implicit none
+
+! set default as private
+  private
+! set subroutines and functions to public
+  public :: read_hdraob
+  public :: nhdt,nhdq,nhduv,nhdps
+  public :: hdtlist,hdqlist,hduvlist,hdpslist
+
+  integer(i_kind) :: nhdt,nhdq,nhduv,nhdps
+  integer(i_kind),allocatable,dimension(:) :: hdpslist,hduvlist,hdtlist,hdqlist
+
+contains
+   subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      prsl_full,hgtl_full,nobs,nrec_start)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -107,7 +148,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !  integer(i_kind),parameter:: mxtb=5000000
 !  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
-  integer(i_kind), parameter:: maxlevs=10000
+  integer(i_kind), parameter:: maxlevs=20000
 
 ! Declare local variables
   logical tob,qob,uvob,psob
@@ -158,6 +199,8 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv   !  the position of error table collum
   integer(i_kind),dimension(maxlevs):: pqm,qqm,tqm,wqm
   integer(i_kind) idummy1,idummy2,glret,lindx !glret>0 means GLERL code exists.Others are dummy variables
+  integer(i_kind) nstations
+  integer(i_kind),allocatable,dimension(:):: list_stations
   real(r_kind) time,timex,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
@@ -187,6 +230,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(8,maxlevs):: var_jb,obserr
   real(r_double),dimension(8,maxlevs):: obsdat
 
+  logical newstation
 
 
 !  equivalence to handle character names
@@ -214,8 +258,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   logical print_verbose
   
-! print_verbose=.false.
-  print_verbose=.true.
+  print_verbose=.false.
   if(verbose) print_verbose=.true.
 
 ! Initialize variables
@@ -225,6 +268,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   qob = obstype == 'q'
   psob = obstype == 'ps'
 
+  nstations=0
   zflag=0
   nreal=0
   if(tob)then
@@ -236,7 +280,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(qob) then
      nreal=26
   else 
-     write(6,*) ' illegal obs type in READ_HDROAB ',obstype
+     write(6,*) ' illegal obs type in READ_HDRAOB ',obstype
      call stop2(94)
   end if
 
@@ -246,11 +290,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (blacklst) call blacklist_read(obstype)
 
-  lim_qm=1
-  pqm=0
-  tqm=0
-  qqm=0
-  wqm=0
+  lim_qm=3
   terrmin=half
   werrmin=one
   perrmin=0.3_r_kind
@@ -336,6 +376,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       endif
 
         call ufbint(lunin,levdat,2,maxlevs,levs,levstr)
+        if(levs > maxlevs)write(6,*) ' not enough levels increase maxlevs ',levs,maxlevs
         if(uvob .and. levdat(1,2) > 1.e8)kx=218
 !  Match ob to proper convinfo type
         ncsave=0
@@ -371,6 +412,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !------------------------------------------------------------------------
 
 
+  allocate(list_stations(ntb))
 ! loop over convinfo file entries; operate on matches
   
   allocate(cdata_all(nreal,maxobs),isort(maxobs))
@@ -420,10 +462,10 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            igroup=hdr(1)
            istation=hdr(2)
            id=1000*igroup+istation
+!          write(6,*) id,igroup,istation,hdr(1),hdr(2)
            call ufbint(lunin,levdat,2,maxlevs,levs,levstr)
-           if(psob)write(6,*) igroup,istation,id,levs,levdat(1,1)
-           if(igroup < 0 .or. istation < 0 .or. id >= 100000)then
-               write(6,*) ' hdr ',hdr
+           if(igroup < 0 .or. istation < 0 .or. id >= 100000 .or. id <= 0)then
+               if(print_verbose)write(6,*) ' hdr ',hdr
                cycle loop_readsb
            end if 
            write(c_station_id,'(i5,3x)') id
@@ -439,20 +481,14 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                 levdat(2,k)=levdat(2,k)/grav
               end if
            end do
-!          write(6,*) '1',(obsdat1(j),j=1,8),levs
-!          do i=1,levs
-!             write(6,*) i,'pres',levdat(1,i),levdat(2,i),hdr(10)
-!             write(6,*) '0',(obsdat(j,i),j=1,8)
-!             write(6,*) '2',(hdr3(j),j=1,8)
-!          end do
 
 !------------------------------------------------------------------------
 
            dlat_earth_deg=hdr2(7)
            dlon_earth_deg=hdr2(8)
            if(abs(dlat_earth_deg)>r90 ) then
-              write(6,*) ' invalid lat ',id,dlat_earth_deg
-                cycle loop_readsb
+              if(print_verbose)write(6,*) ' invalid lat ',id,dlat_earth_deg
+              cycle loop_readsb
            end if
            if(dlon_earth_deg >= r360)dlon_earth_deg=dlon_earth_deg-r360
            if(dlon_earth_deg < zero)dlon_earth_deg=dlon_earth_deg+r360
@@ -483,7 +519,10 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                         w01*prsl_full(klat1 ,klonp1,kk) + &
                         w11*prsl_full(klatp1,klonp1,kk)
            end do
-
+           pqm=0
+           tqm=0
+           qqm=0
+           wqm=0
            if(levdat(1,2) < 1.e8)then
               do k=1,levs
                  plevs(k)=0.1*levdat(1,k)   ! convert mb to cb
@@ -510,6 +549,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        if(hgtl(kk) <= obheight .and. hgtl(kk+1) > obheight)then
                           fact=(hgtl(kk+1)-obheight)/(hgtl(kk+1)-hgtl(kk))
                           plevs(k)=exp(fact*log(presl(kk))+(1.-fact)*log(presl(kk+1)))
+                          wqm(k)=1
                        end if
                     end do
                  end if
@@ -570,10 +610,6 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            t4dv=t4dv + time_correction
            time=timeobs + time_correction
 
-!          write(6,*) 'time ',obsdat,oberrflg
-!          write(6,*) 'time ',rminobs,rminan,timeobs,time_correction,toff,levs
-
-     
 !          Extract data information on levels
 
 !          If available, get obs errors from error table
@@ -589,7 +625,6 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            wjbmin=zero
            pjbmin=zero
            itypey=kx
-!          write(6,*) 'njqc ',njqc,maxsub_t
            if( njqc) then
               if (psob)  then
                  itypex=itypey
@@ -681,7 +716,6 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     del_t=max(zero,min(del_t,one))
 ! Temperature error
                     if(oberrflg)then
-!                      write(6,*) 'READ_HDRAOB_T:',itypex,k1_t,itypey,k2_t,ierr_t,nc,kx,ppb
                        obserr(3,k)=(one-del_t)*etabl_t(itypex,k1_t,ierr_t)+del_t*etabl_t(itypex,k2_t,ierr_t)
                        obserr(3,k)=max(obserr(3,k),terrmin)
                     endif
@@ -731,7 +765,6 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     del_q=max(zero,min(del_q,one))
 ! Humidity error
                     if(oberrflg)then
-!                       write(6,*) 'READ_HDRAOB_Q:',itypex,k1_q,itypey,k2_q,ierr_q,nc,kx,ppb
                        obserr(2,k)=(one-del_q)*etabl_q(itypex,k1_q,ierr_q)+del_q*etabl_q(itypex,k2_q,ierr_q)
                        obserr(2,k)=max(obserr(2,k),qerrmin)
                     endif
@@ -739,9 +772,6 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     var_jb(2,k)=(one-del_q)*btabl_q(itypex,k1_q,ierr_q)+del_q*btabl_q(itypex,k2_q,ierr_q)
                     var_jb(2,k)=max(var_jb(2,k),qjbmin)
                     if (var_jb(2,k) >=10.0_r_kind) var_jb(2,k)=zero
-!                   if(itypey==120  ) then
-!                     write(6,*) 'READ_HDRAOB:120_q,obserr,var_jb=',obserr(2,k),var_jb(2,k),ppb
-!                   endif
                  enddo
              endif
              if (uvob) then
@@ -784,16 +814,12 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                    endif
                    del_uv=max(zero,min(del_uv,one))
 ! Wind error
-!                         write(6,*) 'READ_HDRAOB_UV:',itypex,k1_uv,itypey,k2_uv,ierr_uv,nc,kx,ppb
                    obserr(5,k)=(one-del_uv)*etabl_uv(itypex,k1_uv,ierr_uv)+del_uv*etabl_uv(itypex,k2_uv,ierr_uv)
                    obserr(5,k)=max(obserr(5,k),werrmin)
 !Wind b
                    var_jb(5,k)=(one-del_uv)*btabl_uv(itypex,k1_uv,ierr_uv)+del_uv*btabl_uv(itypex,k2_uv,ierr_uv)
                    var_jb(5,k)=max(var_jb(5,k),wjbmin)
                    if (var_jb(5,k) >=10.0_r_kind) var_jb(5,k)=zero
-!                      if(itypey==220) then
-!                         write(6,*) 'READ_HDRAOB:220_uv,obserr,var_jb=',obserr(5,k),var_jb(5,k),ppb,k2_uv,del_uv
-!                      endif
                 enddo
              endif
            else
@@ -832,29 +858,36 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          versus sensible temperature
 
 
-!          write(6,*) tob,qob,levs
            stnelev=hdr3(1)
            if(abs(hdr2(7)) > r90 .or. abs(hdr2(8)) > 720._r_kind)then 
-              write(6,*) ' invalid lat,lon ',id,obstype,hdr2(7),hdr2(8)
+              if(print_verbose)write(6,*) ' invalid lat,lon ',id,obstype,hdr2(7),hdr2(8)
               cycle loop_readsb
            end if
            if(psob)levs=1
            LOOP_K_LEVS: do k=1,levs
               if(tob .or. qob .or. psob)then
                  if(levdat(1,k) < 1. .or. levdat(1,k) > 1500.)then
-                    write(6,*) ' invalid pressure ',id,k,levs,levdat(1,k)
+                    if(print_verbose)write(6,*) ' invalid pressure ',id,k,levs,levdat(1,k)
                     cycle LOOP_K_LEVS
                  end if
               end if
               if(obsdat(1,k) < 0. .or. obsdat(1,k) > 900000.) then
-                  write(6,*) ' invalid change in time ',id,obstype,k,obsdat(1,k) 
+                  if(print_verbose)write(6,*) ' invalid change in time ',id,obstype,k,obsdat(1,k) 
+                  if(tob) tqm(k)=2
+                  if(qob) qqm(k)=2
+                  if(psob) pqm(k)=2
+                  if(uvob) wqm(k)=2
                   obsdat(1,k) = 0.
               end if
               if(abs(obsdat(2,k)) < 10. .and. abs(obsdat(3,k)) < 10.) then
                  dlat_earth_deg=hdr2(7)+obsdat(2,k)
                  dlon_earth_deg=hdr2(8)+obsdat(3,k)
               else
-                 write(6,*) ' invalid change in lat/lon ',id,k,obstype,obsdat(2,k),obsdat(3,k)
+                 if(print_verbose)write(6,*) ' invalid change in lat/lon ',id,k,obstype,obsdat(2,k),obsdat(3,k)
+                 if(tob) tqm(k)=2
+                 if(qob) qqm(k)=2
+                 if(psob) pqm(k)=2
+                 if(uvob) wqm(k)=2
                  dlat_earth_deg=hdr2(7)
                  dlon_earth_deg=hdr2(8)
               end if
@@ -863,7 +896,6 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               dlon_earth=dlon_earth_deg*deg2rad
               dlat_earth=dlat_earth_deg*deg2rad
 
-!             write(6,*) k,dlat_earth_deg,dlon_earth_deg,hdr2(8),obsdat(3,k)
               if(regional)then
                  call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
                  if(outside) cycle loop_readsb   ! check to see if outside regional domain
@@ -885,13 +917,13 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (klonp1==nlon+1) klonp1=1
 
 
-!             if(qob)write(6,*) tob,qob,dlnpob,dlat,dlon
-
               icntpnt=icntpnt+1
 
 !             Set usage variable              
               usage = zero
               if(icuse(nc) <= 0)usage=100._r_kind
+              if(pqm(k) >=lim_qm )usage=102._r_kind
+
 
               if(plevs(k) < 0.0001_r_kind) then
                  write(*,*) 'warning: obs pressure is too small:',kx,k,plevs(k),id
@@ -918,7 +950,8 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Temperature
               if(tob) then
                  if(obsdat(7,k) < 100. .or. obsdat(7,k) > 400.) then
-                    write(6,*)id,'invalid temp',k,levs,obsdat(7,k),plevs(k)
+                    if(print_verbose)write(6,*)id,'invalid temp',k,levs,obsdat(7,k),plevs(k)
+                    tqm(k)=12
                     cycle LOOP_K_LEVS
                  end if
                  ppb=plevs(k)*10.
@@ -944,7 +977,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(8,iout)=nc                      ! type
                  qtflg=one
                  cdata_all(9,iout)=qtflg                   ! qtflg (virtual temperature flag)
-                 cdata_all(10,iout)=0                      ! quality mark
+                 cdata_all(10,iout)=tqm(k)                 ! quality mark
                  cdata_all(11,iout)=obserr(3,k)            ! original obs error            
                  cdata_all(12,iout)=usage                  ! usage parameter
                  cdata_all(13,iout)=idomsfc                ! dominate surface type
@@ -957,21 +990,36 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(20,iout)=levdat(2,k)            ! observation height (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
                  cdata_all(22,iout)='88888888'             ! provider name
-                 cdata_all(23,iout)='88888888'             ! subprovider name
+                 cdata_all(23,iout)='HDRAOB'               ! subprovider name
                  cdata_all(24,iout)=2                      ! cat
                  cdata_all(25,iout)=var_jb(3,k)            ! non linear qc for T
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
+                 if(usage < 100.)then
+                    newstation=.true.
+                    do i=1,nstations
+                       if(list_stations(i) == id) then
+                          newstation=.false.
+                          exit
+                       end if
+                    end do
+                    if(newstation)then
+                       nstations=nstations+1
+                       list_stations(nstations)=id
+                    end if
+                 end if
 
 !             Winds 
               else if(uvob) then 
                  if(obsdat(6,k) < 0. .or. obsdat(6,k) > 360.) then
-                    write(6,*)id,'invalid dir ', k,levs,obsdat(5,k),obsdat(6,k),plevs(k)
+                    wqm(k)=12
+                    if(print_verbose)write(6,*)id,'invalid dir ', k,levs,obsdat(5,k),obsdat(6,k),plevs(k)
                     cycle LOOP_K_LEVS
                  end if
-                 if(obsdat(5,k) < 0. .or. obsdat(5,k) > 200.) then
-                    write(6,*)id,'invalid spd ', k,levs,obsdat(5,k),obsdat(6,k),plevs(k)
+                 if(obsdat(5,k) < 0. .or. obsdat(5,k) > 300.) then
+                    wqm(k)=12
+                    if(print_verbose)write(6,*)id,'invalid spd ', k,levs,obsdat(5,k),obsdat(6,k),plevs(k)
                     cycle LOOP_K_LEVS
                  end if
                  if(levs > 100 .or. plevs(1)-plevs(levs) < .01)then
@@ -1012,7 +1060,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(9,iout)=t4dv+obsdat(1,k)*r60inv ! time
                  cdata_all(10,iout)=nc                     ! type
                  cdata_all(11,iout)=stnelev                ! station elevation
-                 cdata_all(12,iout)=0                      ! quality mark
+                 cdata_all(12,iout)=wqm(k)                 ! quality mark
                  cdata_all(13,iout)=obserr(5,k)            ! original obs error
                  cdata_all(14,iout)=usage                  ! usage parameter
                  cdata_all(15,iout)=idomsfc                ! dominate surface type
@@ -1031,6 +1079,20 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
                     cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
+!                if(kx == 219 .and. k == 5)write(6,*) k,kx,c_station_id,(cdata_all(i,iout),i=1,25)
+                 if(usage < 100.)then
+                    newstation=.true.
+                    do i=1,nstations
+                       if(list_stations(i) == id) then
+                          newstation=.false.
+                          exit
+                       end if
+                    end do
+                    if(newstation)then
+                       nstations=nstations+1
+                       list_stations(nstations)=id
+                    end if
+                 end if
  
 !             Specific humidity 
               else if(qob) then
@@ -1046,7 +1108,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     exit LOOP_K_LEVS
                  end if
                  if(obsdat(8,k) < 100. .or. obsdat(8,k) > 300.) then
-                    write(6,*)id,'invalid td ', k,levs,obsdat(7,k),obsdat(8,k),plevs(k)
+                    if(print_verbose)write(6,*)id,'invalid td ', k,levs,obsdat(7,k),obsdat(8,k),plevs(k)
                     cycle LOOP_K_LEVS
                  end if
 !   Need to convert from td to q
@@ -1062,7 +1124,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(8,iout)=nc                      ! type
                  cdata_all(9,iout)=0.2_r_kind              ! q max error
                  cdata_all(10,iout)=obsdat(7,k)            ! dry temperature (obs is tv)
-                 cdata_all(11,iout)=0                      ! quality mark
+                 cdata_all(11,iout)=qqm(k)                 ! quality mark
                  cdata_all(12,iout)=obserr(2,k)*one_tenth  ! original obs error
                  cdata_all(13,iout)=usage                  ! usage parameter
                  cdata_all(14,iout)=idomsfc                ! dominate surface type
@@ -1079,8 +1141,23 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(15,iout),cdata_all(16,iout),cdata_all(12,iout),cdata_all(1,iout))
  
+                 if(usage < 100.)then
+                    newstation=.true.
+                    do i=1,nstations
+                       if(list_stations(i) == id) then
+                          newstation=.false.
+                          exit
+                       end if
+                    end do
+                    if(newstation)then
+                       nstations=nstations+1
+                       list_stations(nstations)=id
+                    end if
+                 end if
               else if(psob) then
                  if(obsdat(7,k) > 400. .or. stnelev > 7000.) exit LOOP_K_LEVS
+                 if(plevs(k) > 200. .or. plevs(k) < 50.) exit LOOP_K_LEVS
+                 if(obsdat(4,k)/grav > 5000.)exit LOOP_K_LEVS
                  poe=obserr(1,k)*one_tenth                !  convert from mb to cb
                  cdata_all(1,iout)=poe                     ! surface pressure error (cb)
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
@@ -1093,7 +1170,7 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(7,iout)=rstation_id             ! station id
                  cdata_all(8,iout)=t4dv                    ! time
                  cdata_all(9,iout)=nc                      ! type
-                 cdata_all(10,iout)=0                      ! quality mark
+                 cdata_all(10,iout)=pqm(k)                 ! quality mark
                  cdata_all(11,iout)=obserr(1,k)*one_tenth  ! original obs error (cb)
                  cdata_all(12,iout)=usage                  ! usage parameter
                  cdata_all(13,iout)=idomsfc                ! dominate surface type
@@ -1108,7 +1185,19 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(14,iout),cdata_all(15,iout),cdata_all(11,iout),cdata_all(1,iout)) 
 
-                 write(6,*) k,kx,c_station_id,(cdata_all(i,iout),i=1,20)
+                 if(usage < 100.)then
+                    newstation=.true.
+                    do i=1,nstations
+                       if(list_stations(i) == id) then
+                          newstation=.false.
+                          exit
+                       end if
+                    end do
+                    if(newstation)then
+                       nstations=nstations+1
+                       list_stations(nstations)=id
+                    end if
+                 end if
               end if
 
 !
@@ -1166,8 +1255,40 @@ subroutine read_hdraob(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_HDRAOB:  ',&
      'nvtest,vdisterrmax=',ntest,vdisterrmax
 
+  if(tob)then
+     nhdt=nstations
+     if(nhdt > 0)allocate(hdtlist(nhdt))
+     do i=1,nhdt
+       hdtlist(i)=list_stations(i)
+     end do
+     write(6,*) ' number of high resolution t stations ',nstations
+  else if(qob)then
+     nhdq=nstations
+     if(nhdq > 0)allocate(hdqlist(nhdq))
+     do i=1,nhdq
+       hdqlist(i)=list_stations(i)
+     end do
+     write(6,*) ' number of high resolution q stations ',nstations
+  else if(uvob)then
+     nhduv=nstations
+     if(nhduv > 0)allocate(hduvlist(nhduv))
+     do i=1,nhduv
+       hduvlist(i)=list_stations(i)
+     end do
+     write(6,*) ' number of high resolution uv stations ',nstations
+  else if(psob)then
+     nhdps=nstations
+     if(nhdps > 0)allocate(hdpslist(nhdps))
+     do i=1,nhdps
+       hdpslist(i)=list_stations(i)
+     end do
+     write(6,*) ' number of high resolution ps stations ',nstations
+  end if
+
+  deallocate(list_stations)
 ! End of routine
   return
 
-end subroutine read_hdraob
+  end subroutine read_hdraob
 
+end module hdraobmod

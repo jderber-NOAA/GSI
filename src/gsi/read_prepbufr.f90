@@ -2308,7 +2308,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(14,iout),cdata_all(15,iout),cdata_all(11,iout),cdata_all(1,iout))
 
-                 if(kx == 120)write(6,*) 'prep',k,c_station_id,(cdata_all(i,iout),i=1,20)
 !             Specific humidity 
               else if(qob) then
                  qmaxerr=emerr
@@ -2351,7 +2350,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! q perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(15,iout),cdata_all(16,iout),cdata_all(12,iout),cdata_all(1,iout))
- 
+  
 !             Total precipitable water (ssm/i)
               else if(pwob) then
 

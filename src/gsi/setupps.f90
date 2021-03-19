@@ -133,6 +133,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 
   use m_dtime, only: dtime_setup, dtime_check
 
+  use hdraobmod, only: nhdps,hdpslist
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
@@ -180,9 +181,9 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   integer(i_kind) ier,ilon,ilat,ipres,ihgt,itemp,id,itime,ikx,iqc,iptrb,ijb
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,idomsfc,izz,iprvd,isprvd
   integer(i_kind) ikxx,nn,ibin,ioff,ioff0
-  integer(i_kind) i,nchar,nreal,ii,jj,k,l,mm1
+  integer(i_kind) i,j,nchar,nreal,ii,jj,k,l,mm1
   integer(i_kind) itype,isubtype 
-  integer(i_kind) ibb,ikk
+  integer(i_kind) ibb,ikk,idddd
 
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
@@ -267,6 +268,19 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
+     ikx=nint(data(ikxx,i))
+     itype=ictype(ikx)
+     if(itype == 120) then
+        rstation_id     = data(id,i)
+        read(station_id,'(i5,3x)') idddd
+        stn_loop:do j=1,nhdps
+          if(idddd == hdpslist(j))then
+             data(iuse,i)=108.
+             muse(i) = .false.
+             exit stn_loop
+          end if
+        end do stn_loop
+     end if
   end do
 
   hr_offset=min_offset/60.0_r_kind

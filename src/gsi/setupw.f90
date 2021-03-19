@@ -69,9 +69,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_dtime, only: dtime_setup, dtime_check
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
+  use hdraobmod, only: nhduv,hduvlist
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use aux2dvarflds, only: rtma_comp_fact10
+
 
   ! The following variables are the coefficients that describe the
   ! linear regression fits that are used to define the dynamic
@@ -285,9 +287,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ihgt,ier2,iuse,ilate,ilone
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
-  integer(i_kind) ibb,ikk,ihil
+  integer(i_kind) ibb,ikk,ihil,idddd
 
-  integer(i_kind) num_bad_ikx
+  integer(i_kind) num_bad_ikx,iprev_station
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -411,6 +413,25 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
+     ikx=nint(data(ikxx,i))
+     itype=ictype(ikx)
+     if(itype == 220 .or. itype == 221) then
+        rstation_id     = data(id,i)
+        read(station_id,'(i5,3x)') idddd
+        if(idddd == iprev_station)then
+          data(iuse,i)=108.
+          muse(i) = .false.
+        else
+           stn_loop:do j=1,nhduv
+             if(idddd == hduvlist(j))then
+                iprev_station=idddd
+                data(iuse,i)=108.
+                muse(i) = .false.
+                exit stn_loop
+             end if
+           end do stn_loop
+        end if
+     end if
   end do
 
 !  handle multiple-report observations at a station

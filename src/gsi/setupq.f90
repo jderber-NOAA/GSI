@@ -169,6 +169,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use state_vectors, only: svars3d, levels
+  use hdraobmod, only: nhdq,hdqlist
 
   ! The following variables are the coefficients that describe the
   ! linear regression fits that are used to define the dynamic
@@ -231,15 +232,15 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_single),allocatable,dimension(:,:)::rdiagbufp
 
 
-  integer(i_kind) i,nchar,nreal,ii,l,jj,mm1,itemp,iip
+  integer(i_kind) i,j,nchar,nreal,ii,l,jj,mm1,itemp,iip
   integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,ioff0,icat,ijb
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iderivative
-  integer(i_kind) ibb,ikk
+  integer(i_kind) ibb,ikk,idddd
   real(r_kind) :: delz
   type(sparr2) :: dhx_dx
-  integer(i_kind) :: iz, q_ind, nind, nnz
+  integer(i_kind) :: iz, q_ind, nind, nnz,iprev_station
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf,cdiagbufp
@@ -314,8 +315,28 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   ijb  =23    ! index of non linear qc parameter
   iptrb=24    ! index of q perturbation
 
+  iprev_station=0
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
+     ikx=nint(data(ikxx,i))
+     itype=ictype(ikx)
+     if(itype == 120) then
+        rstation_id     = data(id,i)
+        read(station_id,'(i5,3x)') idddd
+        if(idddd == iprev_station)then
+          data(iuse,i)=108.
+          muse(i) = .false.
+        else
+           stn_loop:do j=1,nhdq
+             if(idddd == hdqlist(j))then
+                iprev_station=idddd
+                data(iuse,i)=108.
+                muse(i) = .false.
+                exit stn_loop
+             end if
+           end do stn_loop
+        end if
+     end if
   end do
 
   var_jb=zero

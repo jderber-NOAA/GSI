@@ -705,12 +705,13 @@ subroutine read_obs(ndata,mype)
            reduce_diag,nobs_sub,dval_use,hurricane_radar,l2rwthin 
     use gsi_nstcouplermod, only: nst_gsi
 !   use gsi_nstcouplermod, only: gsi_nstcoupler_set
+    use hdraobmod, only: read_hdraob,nhdt,nhdq,nhduv,nhdps,hdtlist,hdqlist,hduvlist,hdpslist
     use qcmod, only: njqc,vadwnd_l2rw_qc,nvqc
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
-    use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
+    use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_max,mpi_rtype,mpi_integer,npe,&
          setcomm
-    use constants, only: one,zero
+    use constants, only: one,zero,izero
     use converr, only: converr_read
     use converr_ps, only: converr_ps_read
     use converr_q, only: converr_q_read
@@ -768,6 +769,7 @@ subroutine read_obs(ndata,mype)
     integer(i_kind):: npetot,npeextra,mmdat,nodata
     integer(i_kind):: iworld,iworld_group,next_mype,mm1,iix
     integer(i_kind):: mype_root
+    integer(i_kind),dimension(4):: nhd,nhd1
     integer(i_kind):: minuse,lunsave,maxproc,minproc
     integer(i_kind),dimension(ndat):: npe_sub,npe_sub3,mpi_comm_sub,mype_root_sub,npe_order
     integer(i_kind),dimension(ndat):: ntasks1,ntasks
@@ -780,6 +782,7 @@ subroutine read_obs(ndata,mype)
     integer(i_kind),allocatable,dimension(:):: nrnd
     integer(i_kind):: nmls_type,mype_io_sfc
     integer(i_kind):: iread,ipuse,iouse
+    integer(i_kind),allocatable,dimension(:)::hdlist
 
     real(r_kind) gstime,val_dat,rmesh,twind,rseed
     real(r_kind),allocatable,dimension(:) :: prslsm,hgtlsm,work1
@@ -837,7 +840,11 @@ subroutine read_obs(ndata,mype)
        deallocate(nrnd)
     endif
 
-
+!   Set number of high definition stations to zero
+    nhdt=izero
+    nhdq=izero
+    nhduv=izero
+    nhdps=izero
 
 !   Set data class and number of reader tasks.  Set logical flag to indicate 
 !   type type of GPS data (if present)
@@ -1482,7 +1489,7 @@ subroutine read_obs(ndata,mype)
                   string='READ_FL_HDOB'
                 else if (index(infile,'uprair') /=0)then
                    call read_hdraob(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
-                        prsl_full,nobs_sub1(1,i),read_rec(i))
+                        prsl_full,hgtl_full,nobs_sub1(1,i),read_rec(i))
                    string='READ_UPRAIR'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
@@ -1907,6 +1914,59 @@ subroutine read_obs(ndata,mype)
     end if
     super_val1(0)=one
     deallocate(super_val)
+    nhd(1)=nhdt
+    nhd(2)=nhdq
+    nhd(3)=nhduv
+    nhd(4)=nhdps
+!   get number of high resolution stations on every processor
+    call mpi_allreduce(nhd,nhd1,4,mpi_integer,mpi_max,mpi_comm_world,ierror)
+    nhdt=nhd1(1)
+    nhdq=nhd1(2)
+    nhduv=nhd1(3)
+    nhdps=nhd1(4)
+    hdlist=izero
+    if(nhdt > 0)then
+        if(.not. allocated(hdtlist))then 
+           allocate(hdtlist(nhdt))
+           hdtlist=izero
+        end if
+        allocate(hdlist(nhdt))
+        hdlist=hdtlist
+        call mpi_allreduce(hdlist,hdtlist,nhdt,mpi_integer,mpi_max,mpi_comm_world,ierror)
+        deallocate(hdlist)
+    end if
+    if(nhdq > 0) then
+        if(.not. allocated(hdqlist))then
+           allocate(hdqlist(nhdq))
+           hdqlist=izero
+        end if
+        allocate(hdlist(nhdq))
+        hdlist=hdqlist
+        call mpi_allreduce(hdlist,hdqlist,nhdq,mpi_integer,mpi_max,mpi_comm_world,ierror)
+        deallocate(hdlist)
+    end if
+    if(nhduv > 0) then
+        if(.not. allocated(hduvlist))then
+           allocate(hduvlist(nhduv))
+           hduvlist=izero
+        end if
+        allocate(hdlist(nhduv))
+        hdlist=hduvlist
+        call mpi_allreduce(hdlist,hduvlist,nhduv,mpi_integer,mpi_max,mpi_comm_world,ierror)
+        deallocate(hdlist)
+    end if
+    if(nhdps > 0)then
+        if(.not. allocated(hdpslist))then
+           allocate(hdpslist(nhdps))
+           hdpslist=izero
+        end if
+        allocate(hdlist(nhdps))
+        hdlist=hdpslist
+        call mpi_allreduce(hdlist,hdpslist,nhdps,mpi_integer,mpi_max,mpi_comm_world,ierror)
+        deallocate(hdlist)
+    end if
+    
+    if(mype == 0)write(6,*)'number of stations',nhdt,nhdq,nhduv,nhdps
 
 !   Collect number of gps profiles (needed later for qc)
     call mpi_allreduce(nprof_gps1,nprof_gps,1,mpi_integer,mpi_sum,mpi_comm_world,ierror)

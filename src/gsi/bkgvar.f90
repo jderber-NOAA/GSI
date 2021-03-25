@@ -77,7 +77,7 @@ subroutine bkgvar(cvec,iflg)
   type(gsi_bundle),intent(inout) :: cvec
 
 ! Declare local variables
-  integer(i_kind) i,j,k,n,i_sst,i_stl,i_sti,istatus
+  integer(i_kind) i,j,k,n,i_sst,i_stl,i_sti,istatus,nstatus
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptr2d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptrsst=>NULL()
@@ -106,9 +106,9 @@ subroutine bkgvar(cvec,iflg)
   call gsi_bundlegetpointer(cvec,'stl',ptrstl,istatus)
   call gsi_bundlegetpointer(cvec,'sti',ptrsti,istatus)
   if(iflg == 0)then
-     sst=zero
-     ptrstl=zero
-     ptrsti=zero
+     if(i_sst > 0)sst=zero
+     if(i_stl > 0)ptrstl=zero
+     if(i_sti > 0)ptrsti=zero
   end if
 
 ! Surface fields

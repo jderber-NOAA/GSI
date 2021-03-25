@@ -51,7 +51,6 @@ subroutine get_gefs_ensperts_dualres
   use mpeu_util, only: die
   use gridmod, only: idsl5
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
-  use hybrid_ensemble_parameters, only: sst_staticB
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
   use mpimod, only: mpi_comm_world,mype,npe
@@ -85,7 +84,8 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri,qs
 
 ! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
-  integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,mm1,iderivative,im,jm,km,m,ipic
+  integer(i_kind) istatus,iret,i,ic3,j,k,n,iderivative,im,jm,km,m,ipic
+! integer(i_kind) mm1
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d)
   integer(i_kind) ier
 ! integer(i_kind) il,jl

@@ -55,7 +55,6 @@ subroutine bkerror(grady)
   use berror, only: varprd,fpsproj,fut2ps
   use balmod, only: balance,tbalance
   use gsi_4dvar, only: nsubwin, lsqrtb
-  use gridmod, only: nlat,nlon
   use jfunc, only: nsclen,npclen,ntclen
   use jfunc, only: set_sqrt_2dsize
   use constants, only:  zero

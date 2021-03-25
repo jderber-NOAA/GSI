@@ -112,8 +112,8 @@ subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
 
     if ( (use_gfs_nemsio .or. use_gfs_ncio) .and. ens_fast_read ) then
        call get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
-                         grd_ens%lat2,grd_ens%lon2,grd_ens%nsig, &
-                         nc2d,nc3d,members,iret,grd)
+                         grd_ens%lat2,grd_ens%lon2, &
+                         nc2d,nc3d,iret,grd)
     else
        do n = 1,members
           call get_gfs_ens(this,grd,n,ntindex,atm_bundle(n),iret)
@@ -125,7 +125,7 @@ subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
 end subroutine get_gfs_Nens
 
 subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
-                           lat2in,lon2in,nsigin,nc2din,nc3din,n_ensin,iret,grd)
+                           lat2in,lon2in,nc2din,nc3din,iret,grd)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_user_ens_gfs_fastread_
@@ -183,7 +183,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     ! Declare passed variables
     integer(i_kind),     intent(in   ) :: ntindex
-    integer(i_kind),     intent(in   ) :: lat2in,lon2in,nsigin,nc2din,nc3din,n_ensin
+    integer(i_kind),     intent(in   ) :: lat2in,lon2in,nc2din,nc3din
     integer(i_kind),     intent(  out) :: iret
     type(sub2grid_info), intent(in   ) :: grd
     type(gsi_bundle),    intent(inout) :: atm_bundle(:)
@@ -385,7 +385,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     character(len=70) :: filename
 
     integer(i_kind) :: ierr
-    integer(i_kind) :: km,m,k
+    integer(i_kind) :: km,m
     integer(i_kind) :: icw,iql,iqi,iqr,iqs,iqg  
     real(r_kind),pointer,dimension(:,:) :: ps
     !real(r_kind),pointer,dimension(:,:) :: sst
@@ -615,7 +615,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
                                         filename,init_head,filenamesfc)
 
    use kinds, only: i_kind,r_kind,r_single
-   use constants, only: r60,r3600,zero,one,half,pi,deg2rad
+   use constants, only: r60,r3600,zero,one,half,deg2rad
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
    use ncepnems_io, only: error_msg,imp_physics
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
@@ -662,7 +662,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    real(r_kind) :: fhour
    type(nemsio_gfile) :: gfile
    type(nemsio_gfile) :: gfilesfc
-   real(r_kind),allocatable,dimension(:) :: rlats,rlons
+   real(r_kind),allocatable,dimension(:) :: rlons
    real(r_kind) :: clons(nlon),slons(nlon)
    real(r_single),allocatable,dimension(:) :: r4lats,r4lons
 
@@ -703,20 +703,15 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
       endif
    endif
 
-!  obtain r4lats,r4lons,rlats,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
+!  obtain r4lats,r4lons,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
 
-   allocate(rlats(latb+2),rlons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
+   allocate(rlons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
    call nemsio_getfilehead(gfile,lat=r4lats,iret=iret)
    call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)
-   do j=1,latb
-      rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
-   enddo
    do j=1,lonb
       rlons(j)=deg2rad*r4lons(j)
    enddo
    deallocate(r4lats,r4lons)
-   rlats(1)=-half*pi
-   rlats(latb+2)=half*pi
    do j=1,lonb
       clons(j)=cos(rlons(j))
       slons(j)=sin(rlons(j))
@@ -899,7 +894,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
 !$$$
 
    use kinds, only: i_kind,r_kind,r_single
-   use constants, only: r60,r3600,zero,one,half,pi,deg2rad
+   use constants, only: r60,r3600,zero,one,half,deg2rad
    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
    use general_sub2grid_mod, only: sub2grid_info
    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&

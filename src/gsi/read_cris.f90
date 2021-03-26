@@ -842,6 +842,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      enddo read_subset
 
      call closbf(lnbufr)
+     close(lnbufr)
 
   end do ears_db_loop
 

@@ -234,6 +234,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
       end do   
    end do
    call closbf(lun11)
+   close(lun11)
 !
 ! Allocate Arrays for all the data
    allocate (data_all (nreal, cnt),isort(cnt))

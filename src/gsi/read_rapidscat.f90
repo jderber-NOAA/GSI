@@ -388,6 +388,7 @@ loopd : do
      endif
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)

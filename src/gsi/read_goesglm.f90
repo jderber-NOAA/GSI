@@ -407,8 +407,6 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
 
   close(lunin)
 
-  close(55)
-
 ! End of routine
   return
 

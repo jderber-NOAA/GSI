@@ -492,6 +492,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         end do read_loop
      end do read_subset
      call closbf(lnbufr)
+     close(lnbufr)
   end do ears_db_loop
   deallocate(data1b8)
 

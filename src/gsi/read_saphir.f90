@@ -387,6 +387,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      end do read_loop
   end do read_subset
   call closbf(lnbufr)
+  close(lnbufr)
   deallocate(data1b8)
   
   num_obs = iob-1

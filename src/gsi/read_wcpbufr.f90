@@ -342,6 +342,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -676,6 +677,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   enddo loop_convinfo! loops over convinfo entry matches
 ! Close unit to bufr file
   call closbf(lunin)
+  close(lunin)
   deallocate(lmsg,tab,nrep)
 
 ! Write header record and data to output file for further processing

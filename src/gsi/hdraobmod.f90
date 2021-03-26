@@ -33,9 +33,11 @@ module hdraobmod
 ! set subroutines and functions to public
   public :: read_hdraob
   public :: nhdt,nhdq,nhduv,nhdps
+  public :: nodet,nodeq,nodeps,nodeuv
   public :: hdtlist,hdqlist,hduvlist,hdpslist
 
   integer(i_kind) :: nhdt,nhdq,nhduv,nhdps
+  integer(i_kind) :: nodet,nodeq,nodeps,nodeuv
   integer(i_kind),allocatable,dimension(:) :: hdpslist,hduvlist,hdtlist,hdqlist
 
 contains
@@ -80,19 +82,18 @@ contains
 !
 !$$$
   use kinds, only: r_single,r_kind,r_double,i_kind
-  use constants, only: zero,one_tenth,one,deg2rad,fv,t0c,half,&
-      three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
+  use constants, only: zero,one_tenth,one,deg2rad,half,&
+      rad2deg,tiny_r_kind,huge_r_kind,&
       r60inv,r10,r100,r2000,eps,omeps
-  use constants,only: rearth,stndrd_atmos_ps,rd,grav
+  use constants,only: grav
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
-      tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
+      tll2xy,rotate_wind_ll2xy,rotate_wind_xy2ll,&
       rlats,rlons,twodvar_regional,fv3_regional
   use convinfo, only: nconvtype,ctwind, &
-      ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-      use_prepb_satwnd
+      ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom
-  use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
+  use obsmod, only: blacklst,offtime_data
   use converr,only: etabl
   use converr_ps,only: etabl_ps,isuble_ps,maxsub_ps
   use converr_q,only: etabl_q,isuble_q,maxsub_q
@@ -102,16 +103,12 @@ contains
   use convb_q,only: btabl_q
   use convb_t,only: btabl_t
   use convb_uv,only: btabl_uv
-  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
-  use qcmod, only: errormod,errormod_hdraob,noiqc,newvad,njqc
-  use qcmod, only: nrand
+  use gsi_4dvar, only: time_4dvar,winlen
+  use qcmod, only: errormod,errormod_hdraob,njqc
   use mpimod, only: mype
-  use nltransf, only: nltransf_forward
   use blacklist, only : blacklist_read,blacklist_destroy
-  use blacklist, only : blkstns,blkkx,ibcnt
   use ndfdgrids,only: adjust_error
-  use jfunc, only: tsensible
-  use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+  use deter_sfc_mod, only: deter_sfc2
   use mpimod, only: npe
   use gsi_io, only: verbose
 
@@ -127,24 +124,10 @@ contains
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full,hgtl_full
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r0_75 = 0.75_r_kind
-  real(r_kind),parameter:: r0_7 = 0.7_r_kind
   real(r_kind),parameter:: r1_2 = 1.2_r_kind
-  real(r_kind),parameter:: r1_02 = 1.02_r_kind
-  real(r_kind),parameter:: r3_33= three + one/three
-  real(r_kind),parameter:: r6   = 6.0_r_kind
-  real(r_kind),parameter:: r20  = 20.0_r_kind
   real(r_kind),parameter:: r50  = 50.0_r_kind
   real(r_kind),parameter:: r90  = 90.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
-  real(r_kind),parameter:: r500 = 500.0_r_kind
-  real(r_kind),parameter:: r999 = 999.0_r_kind
-  real(r_kind),parameter:: r1200= 1200.0_r_kind
-  real(r_kind),parameter:: convert= 1.0e-6_r_kind
-  real(r_kind),parameter:: emerr= 0.2_r_kind
-  real(r_kind),parameter:: r0_1_bmiss=one_tenth*bmiss
-  real(r_kind),parameter:: r0_01_bmiss=r0_01*bmiss
 
 !  integer(i_kind),parameter:: mxtb=5000000
 !  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
@@ -152,36 +135,27 @@ contains
 
 ! Declare local variables
   logical tob,qob,uvob,psob
-  logical outside,convob
-  logical sfctype
-  logical luse,windcorr
-  logical patch_fog
-  logical acft_profl_file
+  logical outside
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(80) hdstr,hdstr2,hdstr3,levstr
-  character(40) maxtmintstr,owavestr
   character(80) obstr
   character(10) date
   character(8) subset
   character(8) prvstr,sprvstr     
   character(8) c_station_id
-  character(8) cc_station_id
-  character(1) sidchr(8)
   character(8) stnid
-  character(1) cb
-  character(1) cdummy
 
-  integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
-  integer(i_kind) lunin,i,maxobs,j,idomsfc,it29,nmsgmax,mxtb
+  integer(i_kind) ireadmg,ireadsb
+  integer(i_kind) lunin,i,maxobs,j,idomsfc,nmsgmax,mxtb
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
-  integer(i_kind) nc,nx,isflg,ntread,itx,ii,ncsave
+  integer(i_kind) nc,nx,ntread,itx,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
-  integer(i_kind) kx,kx0,nreal,nchanl,ilat,ilon
+  integer(i_kind) kx,nreal,nchanl,ilat,ilon
   integer(i_kind) lim_qm
-  integer(i_kind) ntmp,iout
-  integer(i_kind) pflag,irec,zflag
-  integer(i_kind) ntest,nvtest,iosub,ixsub,isubsub
+  integer(i_kind) iout
+  integer(i_kind) irec
+  integer(i_kind) ntest,nvtest
   integer(i_kind) kl,k1,k2,k1_ps,k1_q,k1_t,k1_uv,k2_q,k2_t,k2_uv,k2_ps
   integer(i_kind) itypex,itypey,id
   integer(i_kind) minobs,minan
@@ -191,18 +165,14 @@ contains
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
-  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
   integer(i_kind),allocatable,dimension(:,:):: tab
-  integer(i_kind) ibfms,thisobtype_usage
-  integer(i_kind) iwmo,ios
-  integer(i_kind) ntime,itime,igroup,istation
+  integer(i_kind) igroup,istation
   integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv   !  the position of error table collum
   integer(i_kind),dimension(maxlevs):: pqm,qqm,tqm,wqm
-  integer(i_kind) idummy1,idummy2,glret,lindx !glret>0 means GLERL code exists.Others are dummy variables
   integer(i_kind) nstations
   integer(i_kind),allocatable,dimension(:):: list_stations
-  real(r_kind) time,timex,timeobs,toff,t4dv,zeps
-  real(r_kind) qtflg,tdry,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv
+  real(r_kind) time,timeobs,toff,t4dv,zeps
+  real(r_kind) qtflg,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) qoe,qobcon,dlnpob,ppb,poe,obheight
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,dlat_earth,dlon_earth
@@ -219,10 +189,9 @@ contains
   real(r_kind),dimension(nsig-1):: dpres
   real(r_kind),dimension(maxlevs)::plevs
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
-  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
+  real(r_kind) :: zob,tref
 
   real(r_double) rstation_id
-  real(r_double) vtcd,glcd !virtual temp program code and GLERL program code
   real(r_double),dimension(2):: hdr
   real(r_double),dimension(8):: hdr2
   real(r_double),dimension(1):: hdr3
@@ -235,14 +204,13 @@ contains
 
 !  equivalence to handle character names
   equivalence(rstation_id,c_station_id)
-  equivalence(rstation_id,sidchr)
 
 !  data statements
   data hdstr  /'WMOB WMOS'/
   data hdstr2 /'YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH' /
   data hdstr3 /'HEIT'/
   data obstr  /'LTDS LATDH LONDH GP10 WSPD WDIR TMDB TMDP'/
-  data levstr  /'PRLC GP07'/
+  data levstr /'PRLC GP07'/
   data lunin / 13 /
   !* for match loction station and time
 !       character(7*2000) cstn_idtime,cstn_idtime2
@@ -269,7 +237,6 @@ contains
   psob = obstype == 'ps'
 
   nstations=0
-  zflag=0
   nreal=0
   if(tob)then
      nreal=25
@@ -318,13 +285,12 @@ contains
 !! get message and subset counts
 
   call getcount_bufr(infile,nmsgmax,mxtb)
-  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
+  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3))
 
   lmsg = .false.
   maxobs=0
   tab=0
   nmsg=0
-  nrep=0
   ntb = 0
   ncount_ps=0;ncount_q=0;ncount_t=0;ncount_uv=0
 
@@ -405,7 +371,7 @@ contains
      if(print_verbose)write(6,*)'READ_HDRAOB: no messages/reports '
      return
   end if
-  if(print_verbose)write(6,*)'READ_HDRAOB: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
+  write(6,*)'READ_HDRAOB: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
 
 
   if(qob .and. print_verbose) write(6,*)'READ_HDRAOB: time offset is ',toff,' hours.'
@@ -415,8 +381,7 @@ contains
   allocate(list_stations(ntb))
 ! loop over convinfo file entries; operate on matches
   
-  allocate(cdata_all(nreal,maxobs),isort(maxobs))
-  isort = 0
+  allocate(cdata_all(nreal,maxobs))
   cdata_all=zero
   nread=0
   ntest=0
@@ -424,7 +389,6 @@ contains
   nchanl=0
   ilon=2
   ilat=3
-  pflag=0
   loop_convinfo: do nx=1,ntread
 
      call closbf(lunin)
@@ -436,8 +400,6 @@ contains
 
      ntb = 0
      nmsg = 0
-     icntpnt=0
-     icntpnt2=0
      disterrmax=-9999.0_r_kind
      irec = 0
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
@@ -643,7 +605,7 @@ contains
                        enddo
                        if (ncount_ps ==1) then
                           write(6,*) 'READ_HDRAOB: WARNING!!psob: cannot find subtyep in the &
-                                     error table,itype,iosub=',itypex,icsubtype(nc)
+                                     error table,itype=',itypex,icsubtype(nc)
                           write(6,*) 'read error table at colomn subtype as 0, error table column=',ierr_ps
                        endif
                     endif
@@ -693,14 +655,16 @@ contains
                        enddo
                        if( ncount_t ==1) then
                           write(6,*) 'READ_HDRAOB,WARNING!! tob:cannot find subtyep in the error,& 
-                                      table,itype,iosub=',itypex,icsubtype(nc)
+                                      table,itype=',itypex,icsubtype(nc)
                           write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_t
                        endif
                     endif
                  enddo
                  do k=1,levs
                     ppb=plevs(k)*10.
-                    if(ppb <= zero .or. ppb > r2000)cycle loop_readsb
+                    if(ppb <= zero .or. ppb > r2000)then
+                      cycle loop_readsb
+                    end if
                     if(ppb>=etabl_t(itypex,1,1)) k1_t=1
                        do kl=1,32
                        if(ppb>=etabl_t(itypex,kl+1,1).and.ppb<=etabl_t(itypex,kl,1)) k1_t=kl
@@ -742,7 +706,7 @@ contains
                        enddo
                        if(ncount_q ==1 ) then
                           write(6,*) 'READ_HDRAOB,WARNING!! qob:cannot find subtyep in the & 
-                                     error table,itype,iosub=',itypex,icsubtype(nc)
+                                     error table,itype=',itypex,icsubtype(nc)
                           write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_q
                        endif
                     endif
@@ -791,7 +755,7 @@ contains
                        enddo
                        if( ncount_uv == 1) then
                           write(6,*) 'READ_HDRAOB,WARNING!! uvob:cannot find subtyep in the error,&
-                                      table,itype,iosub=',itypex,icsubtype(nc)
+                                      table,itype=',itypex,icsubtype(nc)
                           write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_uv
                        endif
                     endif
@@ -826,7 +790,9 @@ contains
              do k=1,levs
                 itypex=kx
                 ppb=plevs(k)*10.
-                if(ppb <= zero .or. ppb > r2000)cycle loop_readsb
+                if(ppb <= zero .or. ppb > r2000)then
+                  cycle loop_readsb
+                end if
                 if(ppb>=etabl(itypex,1,1)) k1=1
                 do kl=1,32
                    if(ppb>=etabl(itypex,kl+1,1).and.ppb<=etabl(itypex,kl,1)) k1=kl
@@ -917,7 +883,6 @@ contains
               if (klonp1==nlon+1) klonp1=1
 
 
-              icntpnt=icntpnt+1
 
 !             Set usage variable              
               usage = zero
@@ -935,7 +900,6 @@ contains
               nodata=nodata+1
               if(uvob)nodata=nodata+1
               iout=ndata
-              isort(icntpnt)=iout
 
 
               if(ndata > maxobs) then
@@ -952,7 +916,7 @@ contains
                  if(obsdat(7,k) < 100. .or. obsdat(7,k) > 400.) then
                     if(print_verbose)write(6,*)id,'invalid temp',k,levs,obsdat(7,k),plevs(k)
                     tqm(k)=12
-                    cycle LOOP_K_LEVS
+                    usage=108._r_kind
                  end if
                  ppb=plevs(k)*10.
 !  setup later
@@ -1014,13 +978,13 @@ contains
               else if(uvob) then 
                  if(obsdat(6,k) < 0. .or. obsdat(6,k) > 360.) then
                     wqm(k)=12
+                    usage=108._r_kind
                     if(print_verbose)write(6,*)id,'invalid dir ', k,levs,obsdat(5,k),obsdat(6,k),plevs(k)
-                    cycle LOOP_K_LEVS
                  end if
                  if(obsdat(5,k) < 0. .or. obsdat(5,k) > 300.) then
                     wqm(k)=12
+                    usage=108._r_kind
                     if(print_verbose)write(6,*)id,'invalid spd ', k,levs,obsdat(5,k),obsdat(6,k),plevs(k)
-                    cycle LOOP_K_LEVS
                  end if
                  if(levs > 100 .or. plevs(1)-plevs(levs) < .01)then
                     call errormod_hdraob(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
@@ -1104,12 +1068,15 @@ contains
                     call errormod(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  end if
                  qoe=obserr(2,k)*errout*one_tenth
-                 if(obsdat(7,k) < 215.) then
-                    exit LOOP_K_LEVS
+                 if(obsdat(7,k) < 215. .or. qqm(k) > lim_qm) then
+                    qqm(k)=12.
+                    if(k < levs)qqm(k)=12.
+                    usage=108._r_kind
                  end if
-                 if(obsdat(8,k) < 100. .or. obsdat(8,k) > 300.) then
+                 if(obsdat(8,k) < 100. .or. obsdat(8,k) > 350.) then
                     if(print_verbose)write(6,*)id,'invalid td ', k,levs,obsdat(7,k),obsdat(8,k),plevs(k)
-                    cycle LOOP_K_LEVS
+                    qqm(k)=12.
+                    usage=108._r_kind
                  end if
 !   Need to convert from td to q
                  call fpvsx_ad(obsdat(8,k),es,dummy,dummy,.false.)
@@ -1155,9 +1122,10 @@ contains
                     end if
                  end if
               else if(psob) then
-                 if(obsdat(7,k) > 400. .or. stnelev > 7000.) exit LOOP_K_LEVS
-                 if(plevs(k) > 200. .or. plevs(k) < 50.) exit LOOP_K_LEVS
-                 if(obsdat(4,k)/grav > 5000.)exit LOOP_K_LEVS
+                 if(obsdat(7,k) > 400. .or. stnelev > 7000.) pqm(k)=12.
+                 if(plevs(k) > 200. .or. plevs(k) < 50.) pqm(k)=12.
+                 if(obsdat(4,k)/grav > 5000.)pqm(k)=12.
+                 if(pqm(k) > lim_qm)usage=108._r_kind
                  poe=obserr(1,k)*one_tenth                !  convert from mb to cb
                  cdata_all(1,iout)=poe                     ! surface pressure error (cb)
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
@@ -1213,7 +1181,7 @@ contains
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg,tab,nrep)
+  deallocate(lmsg,tab)
   call closbf(lunin)
 
   if(print_verbose)write(6,*)'READ_HDRAOB:  closbf(',lunin,')'
@@ -1221,27 +1189,13 @@ contains
   close(lunin)
 
 ! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0
-  do i=1,maxobs
-     if(isort(i) > 0)then
-       icount=icount+1
-       iloc(icount)=isort(i)
-     end if
-  end do
-  write(6,*) 'ndata,icount',ndata,icount
-  if(ndata /= icount)then
-     write(6,*) ' HDRAOB: mix up in read_prepbufr ,ndata,icount ',ndata,icount
-     call stop2(50)
-  end if
   allocate(cdata_out(nreal,ndata))
   do i=1,ndata
-     itx=iloc(i)
      do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
+        cdata_out(k,i)=cdata_all(k,i)
      end do
   end do
-  deallocate(iloc,isort,cdata_all)
+  deallocate(cdata_all)
 
   call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
@@ -1261,6 +1215,7 @@ contains
      do i=1,nhdt
        hdtlist(i)=list_stations(i)
      end do
+     nodet=mype
      write(6,*) ' number of high resolution t stations ',nstations
   else if(qob)then
      nhdq=nstations
@@ -1268,6 +1223,7 @@ contains
      do i=1,nhdq
        hdqlist(i)=list_stations(i)
      end do
+     nodeq=mype
      write(6,*) ' number of high resolution q stations ',nstations
   else if(uvob)then
      nhduv=nstations
@@ -1275,6 +1231,7 @@ contains
      do i=1,nhduv
        hduvlist(i)=list_stations(i)
      end do
+     nodeuv=mype
      write(6,*) ' number of high resolution uv stations ',nstations
   else if(psob)then
      nhdps=nstations
@@ -1282,6 +1239,7 @@ contains
      do i=1,nhdps
        hdpslist(i)=list_stations(i)
      end do
+     nodeps=mype
      write(6,*) ' number of high resolution ps stations ',nstations
   end if
 

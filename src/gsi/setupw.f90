@@ -380,6 +380,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   ihil=26     ! index of  hilbert curve weight
   iptrbu=27   ! index of u perturbation
   iptrbv=28   ! index of v perturbation
+  if(mype == 0)write(6,*)'setupw',nobs,nele,is,(data(1,i),i=1,26)
 
   mm1=mype+1
   scale=one
@@ -411,13 +412,18 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if (netcdf_diag) call init_netcdf_diag_
   end if
 
+  num_bad_ikx=0
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
      ikx=nint(data(ikxx,i))
+     if(ikx < 1 .or. ikx > nconvtype) then
+        num_bad_ikx=num_bad_ikx+1
+        if(num_bad_ikx<=10) write(6,*)' in setupw ',ikx,i,nconvtype,mype
+     end if
      itype=ictype(ikx)
      if(itype == 220 .or. itype == 221) then
         rstation_id     = data(id,i)
-        read(station_id,'(i5,3x)') idddd
+        read(station_id,'(i5,3x)',err=1200) idddd
         if(idddd == iprev_station)then
           data(iuse,i)=108.
           muse(i) = .false.
@@ -427,11 +433,13 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                 iprev_station=idddd
                 data(iuse,i)=108.
                 muse(i) = .false.
+!               write(6,*) ' in setupw ',idddd,itype
                 exit stn_loop
              end if
            end do stn_loop
         end if
      end if
+1200 continue
   end do
 
 !  handle multiple-report observations at a station
@@ -489,7 +497,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         var_jb=data(ijb,i)
         if(ikx < 1 .or. ikx > nconvtype) then
            num_bad_ikx=num_bad_ikx+1
-           if(num_bad_ikx<=10) write(6,*)' in setupw, bad ikx, ikx,i,nconvtype=',ikx,i,nconvtype
+           if(num_bad_ikx<=10) write(6,*)' in setupw, bad ikx, ikx,i,nconvtype=',ikx,i,nconvtype,mype
            cycle
         end if
         isli = data(idomsfc,i)

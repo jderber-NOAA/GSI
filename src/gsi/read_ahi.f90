@@ -219,6 +219,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
   call closbf(lnbufr)
+  close(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   if(jsatid == 'himawari8') kidsat = 173
@@ -504,6 +505,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
      enddo read_loop
   enddo read_msg
   call closbf(lnbufr)
+  close(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)

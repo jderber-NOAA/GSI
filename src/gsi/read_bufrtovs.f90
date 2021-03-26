@@ -946,6 +946,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         enddo read_loop
      enddo read_subset
      call closbf(lnbufr)
+     close(lnbufr)
 
      if(llll > 1 .and. (amsua .or. amsub .or. mhs))then
         deallocate(data1b8x)

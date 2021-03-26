@@ -354,6 +354,7 @@
 ! Jump here if there is a problem opening the bufr file
 110 continue
   call closbf(lnbufr)
+  close(lnbufr)
 
 ! End of routine
   return

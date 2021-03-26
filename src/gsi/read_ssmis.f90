@@ -516,6 +516,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      end do read_loop
   end do read_subset
   call closbf(lnbufr)
+  close(lnbufr)
 
   num_obs = iobs-1
 

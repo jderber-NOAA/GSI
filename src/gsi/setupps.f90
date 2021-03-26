@@ -272,7 +272,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      itype=ictype(ikx)
      if(itype == 120) then
         rstation_id     = data(id,i)
-        read(station_id,'(i5,3x)') idddd
+        read(station_id,'(i5,3x)',err=1200) idddd
         stn_loop:do j=1,nhdps
           if(idddd == hdpslist(j))then
              data(iuse,i)=108.
@@ -281,6 +281,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
           end if
         end do stn_loop
      end if
+1200 continue
   end do
 
   hr_offset=min_offset/60.0_r_kind

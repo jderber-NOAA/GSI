@@ -379,6 +379,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      endif
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -772,8 +773,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
        'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if (ndata == 0) then
-     call closbf(lunin)
-     write(6,*)'READ_SFCWND:  closbf(',lunin,')'
+     write(6,*)'READ_SFCWND:  closbf(',lunin,') no data'
   endif
   
   write(6,*) 'READ_SFCWND,nread,ndata,nreal,nodata=',nread,ndata,nreal,nodata

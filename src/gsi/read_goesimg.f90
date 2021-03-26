@@ -443,6 +443,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 900 continue
   call destroygrids
   call closbf(lnbufr)
+  close(lnbufr)
 
   if(diagnostic_reg.and.ntest>0) write(6,*)'READ_GOESIMG:  ',&
      'mype,ntest,disterrmax=',mype,ntest,disterrmax

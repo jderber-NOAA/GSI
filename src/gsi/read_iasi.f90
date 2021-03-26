@@ -808,6 +808,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      enddo read_subset
 
      call closbf(lnbufr)
+     close(lnbufr)
 
   end do ears_db_loop
 

@@ -302,7 +302,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) kl,k1,k2,k1_ps,k1_q,k1_t,k1_uv,k1_pw,k2_q,k2_t,k2_uv,k2_pw,k2_ps
   integer(i_kind) itypex,itypey
   integer(i_kind) minobs,minan
-  integer(i_kind) ntb,ntmatch,ncx,istation
+  integer(i_kind) ntb,ntmatch,ncx
   integer(i_kind) nmsg                ! message index
   integer(i_kind) idx                 ! order index of aircraft temperature bias
   integer(i_kind) tcamt_qc,lcbas_qc
@@ -910,6 +910,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -2109,7 +2110,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
 
-                 istation=rstation_id
 !             Winds 
               else if(uvob) then 
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
@@ -2933,6 +2933,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   deallocate(lmsg,tab,nrep)
 ! Close unit to bufr file
   call closbf(lunin)
+  close(lunin)
 
 ! Apply hilbert curve for cross validation if requested
 
@@ -3161,7 +3162,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
 
-  close(lunin)
 
 ! End of routine
   return

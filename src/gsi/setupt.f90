@@ -396,7 +396,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      itype=ictype(ikx)
      if(itype == 120) then
         rstation_id     = data(id,i)
-        read(station_id,'(i5,3x)') idddd
+        read(station_id,'(i5,3x)',err=1200) idddd
         if(idddd == iprev_station)then
           data(iuse,i)=108.
           muse(i) = .false.
@@ -406,11 +406,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                 iprev_station=idddd
                 data(iuse,i)=108.
                 muse(i) = .false.
+!               write(6,*) ' in setupt ',idddd
                 exit stn_loop
              end if
            end do stn_loop
         end if
      end if
+1200 continue
   end do
   var_jb=zero
 

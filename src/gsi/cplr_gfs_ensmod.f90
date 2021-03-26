@@ -664,7 +664,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    type(nemsio_gfile) :: gfilesfc
    real(r_kind),allocatable,dimension(:) :: rlons
    real(r_kind) :: clons(nlon),slons(nlon)
-   real(r_single),allocatable,dimension(:) :: r4lats,r4lons
+   real(r_single),allocatable,dimension(:) :: r4lons
 
    if ( init_head)call nemsio_init(iret=iret)
    if (iret /= 0) call error_msg(trim(myname_),trim(filename),null,'init',istop,iret,.true.)
@@ -703,7 +703,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
       endif
    endif
 
-!  obtain r4lats,r4lons,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
+!  obtain r4lons,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
 
    allocate(rlons(lonb),r4lons(lonb*latb))
    call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)

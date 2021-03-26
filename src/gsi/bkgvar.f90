@@ -77,7 +77,7 @@ subroutine bkgvar(cvec,iflg)
   type(gsi_bundle),intent(inout) :: cvec
 
 ! Declare local variables
-  integer(i_kind) i,j,k,n,i_sst,i_stl,i_sti,istatus,nstatus
+  integer(i_kind) i,j,k,n,i_sst,i_stl,i_sti,istatus
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptr2d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptrsst=>NULL()

@@ -315,31 +315,40 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   ijb  =23    ! index of non linear qc parameter
   iptrb=24    ! index of q perturbation
 
-  iprev_station=0
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
-     ikx=nint(data(ikxx,i))
-     itype=ictype(ikx)
-     if(itype == 120) then
-        rstation_id     = data(id,i)
-        read(station_id,'(i5,3x)',err=1200) idddd
-        if(idddd == iprev_station)then
-          data(iuse,i)=108.
-          muse(i) = .false.
-        else
-           stn_loop:do j=1,nhdq
-             if(idddd == hdqlist(j))then
-                iprev_station=idddd
-                data(iuse,i)=108.
-                muse(i) = .false.
-!               write(6,*) ' in setupq ',idddd
-                exit stn_loop
-             end if
-           end do stn_loop
-        end if
-     end if
-1200 continue
   end do
+!  If HD raobs available move prepbufr version to monitor
+  nhdq=0
+  if(nhdq > 0)then
+     iprev_station=0
+     do i=1,nobs
+        ikx=nint(data(ikxx,i))
+        read(station_id,'(i5,3x)',err=1200) idddd
+        if(itype == 120) then
+           rstation_id     = data(id,i)
+           read(station_id,'(i5,3x)',err=1200) idddd
+           if(idddd == iprev_station)then
+             data(iuse,i)=108.
+             muse(i) = .false.
+!            if(idddd == 47582)then
+!               write(6,*) idddd,luse(i),mype,ictype(ikx),(data(k,i),k=1,15)
+!            end if
+           else
+              stn_loop:do j=1,nhdq
+                if(idddd == hdqlist(j))then
+                   iprev_station=idddd
+                   data(iuse,i)=108.
+                   muse(i) = .false.
+!                  write(6,*) ' in setupq ',idddd
+                   exit stn_loop
+                end if
+              end do stn_loop
+           end if
+        end if
+1200    continue
+     end do
+  end if
 
   var_jb=zero
 
@@ -420,12 +429,12 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! Prepare specific humidity data
   call dtime_setup()
   do i=1,nobs
+     ikx=nint(data(ikxx,i))
+     itype=ictype(ikx)
      dtime=data(itime,i)
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle
 
-     ikx=nint(data(ikxx,i))
-     itype=ictype(ikx)
 
      ! Flag static conditions to create PBL_pseudo_surfobsq obs.
      l_pbl_pseudo_itype = l_pbl_pseudo_surfobsq .and.         &
@@ -438,7 +447,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         dpres=data(ipres,i)
 
         rmaxerr=data(iqmax,i)
-         rstation_id     = data(id,i)
         error=data(ier2,i)
         prest=r10*exp(dpres)     ! in mb
         var_jb=data(ijb,i)
@@ -1082,6 +1090,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end subroutine init_netcdf_diag_
   subroutine contents_binary_diag_(odiag)
     type(obs_diag),pointer,intent(in):: odiag
+
         cdiagbuf(ii)    = station_id         ! station id
 
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
@@ -1205,6 +1214,17 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   character(7),parameter     :: obsclass = '      q'
   real(r_kind),dimension(miter) :: obsdiag_iuse
 
+        read(station_id,'(i5,3x)',err=1300) idddd
+        if(idddd == 47582)then
+          write(6,*) idddd,ictype(ikx),ddiff,qob,qges,presq,dtime
+          write(6,*) idddd,ictype(ikx),icsubtype(ikx),data(ilate,i),data(ilone,i)
+          write(6,*) idddd,ictype(ikx),data(iqc,i),data(iuse,i),errinv_final
+          write(6,*) obsclass,data(istnelv,i),data(iobshgt,i)
+          write(6,*) var_jb,rwgt,qsges,time_offset
+          write(6,*) errinv_input,errinv_adjst,errinv_final
+          write(6,*) idddd,ictype(ikx),luse(i),muse(i)
+        end if
+ 1300   continue
            call nc_diag_metadata("Station_ID",              station_id             )
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )

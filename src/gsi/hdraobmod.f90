@@ -106,7 +106,7 @@ contains
   use gsi_4dvar, only: time_4dvar,winlen
   use qcmod, only: errormod,errormod_hdraob,njqc
   use mpimod, only: mype
-  use blacklist, only : blacklist_read,blacklist_destroy
+! use blacklist, only : blacklist_read,blacklist_destroy
   use ndfdgrids,only: adjust_error
   use deter_sfc_mod, only: deter_sfc2
   use mpimod, only: npe
@@ -157,7 +157,7 @@ contains
   integer(i_kind) irec
   integer(i_kind) ntest,nvtest
   integer(i_kind) kl,k1,k2,k1_ps,k1_q,k1_t,k1_uv,k2_q,k2_t,k2_uv,k2_ps
-  integer(i_kind) itypex,itypey,id
+  integer(i_kind) itypex,id
   integer(i_kind) minobs,minan
   integer(i_kind) ntb,ntmatch,ncx,cat
   integer(i_kind) nmsg                ! message index
@@ -182,7 +182,6 @@ contains
   real(r_kind) vdisterrmax,u00,v00
   real(r_kind) rminobs,rminan,es,dummy
   real(r_kind) del,terrmin,werrmin,perrmin,qerrmin,del_ps,del_q,del_t,del_uv
-  real(r_kind) pjbmin,qjbmin,tjbmin,wjbmin
   real(r_kind) tsavg,ff10,sfcr,zz
   real(r_kind) time_correction,fact
   real(r_kind),dimension(nsig):: presl,hgtl,lnpresl
@@ -199,7 +198,7 @@ contains
   real(r_double),dimension(8,maxlevs):: var_jb,obserr
   real(r_double),dimension(8,maxlevs):: obsdat
 
-  logical newstation
+  logical newstation,toocold
 
 
 !  equivalence to handle character names
@@ -255,17 +254,13 @@ contains
   if(perturb_obs .and. uvob )nreal=nreal+2
 
 
-  if (blacklst) call blacklist_read(obstype)
+! if (blacklst) call blacklist_read(obstype)
 
   lim_qm=3
   terrmin=half
   werrmin=one
   perrmin=0.3_r_kind
   qerrmin=0.05_r_kind
-  tjbmin=zero
-  qjbmin=zero
-  wjbmin=zero
-  pjbmin=zero
 !------------------------------------------------------------------------
   ntread=1
   ntmatch=0
@@ -419,23 +414,26 @@ contains
                  
 !          Extract type, date, and location information
            call ufbint(lunin,hdr,2,1,iret,hdstr)
-           call ufbint(lunin,hdr2,8,1,iret,hdstr2)
-           call ufbint(lunin,hdr3,1,1,iret,hdstr3)
            igroup=hdr(1)
            istation=hdr(2)
            id=1000*igroup+istation
 !          write(6,*) id,igroup,istation,hdr(1),hdr(2)
-           call ufbint(lunin,levdat,2,maxlevs,levs,levstr)
            if(igroup < 0 .or. istation < 0 .or. id >= 100000 .or. id <= 0)then
                if(print_verbose)write(6,*) ' hdr ',hdr
                cycle loop_readsb
            end if 
            write(c_station_id,'(i5,3x)') id
+           call ufbint(lunin,levdat,2,maxlevs,levs,levstr)
            if(levdat(1,2) > 1.e8 .and. (obstype == 'q' .or. obstype == 't'))cycle loop_readsb
            call ufbint(lunin,obsdat,8,maxlevs,levs,obstr)
 
+           if(psob)levs=1
+
 !     Combine height obs into single array and divide by g
            do k=1,levs
+!             if(id == 47582)then
+!               write(6,*)id,levdat(1,k),k,(obsdat(i,k),i=1,8)
+!             end if
               levdat(1,k)=.01*levdat(1,k)
               if(levdat(2,k) > 1.e8)then
                 if(obsdat(4,k) < 1.e8)levdat(2,k)=obsdat(4,k)/grav
@@ -446,6 +444,7 @@ contains
 
 !------------------------------------------------------------------------
 
+           call ufbint(lunin,hdr2,8,1,iret,hdstr2)
            dlat_earth_deg=hdr2(7)
            dlon_earth_deg=hdr2(8)
            if(abs(dlat_earth_deg)>r90 ) then
@@ -582,14 +581,9 @@ contains
            werrmin=one
            perrmin=0.3_r_kind
            qerrmin=0.05_r_kind
-           tjbmin=zero
-           qjbmin=zero
-           wjbmin=zero
-           pjbmin=zero
-           itypey=kx
+           itypex=kx
            if( njqc) then
               if (psob)  then
-                 itypex=itypey
                  ierr_ps=0
                  do i =1,maxsub_ps
                     if(icsubtype(nc)==isuble_ps(itypex,i)) then
@@ -604,9 +598,9 @@ contains
                           endif
                        enddo
                        if (ncount_ps ==1) then
-                          write(6,*) 'READ_HDRAOB: WARNING!!psob: cannot find subtyep in the &
+                          write(6,*) 'READ_HDRAOB: WARNING!!psob: cannot find subtype in the &
                                      error table,itype=',itypex,icsubtype(nc)
-                          write(6,*) 'read error table at colomn subtype as 0, error table column=',ierr_ps
+                          write(6,*) 'read error table at column subtype as 0, error table column=',ierr_ps
                        endif
                     endif
                  enddo
@@ -634,12 +628,11 @@ contains
                     endif
 ! Surface pressure b
                    var_jb(1,k)=(one-del_ps)*btabl_ps(itypex,k1_ps,ierr_ps)+del_ps*btabl_ps(itypex,k2_ps,ierr_ps)
-                    var_jb(1,k)=max(var_jb(1,k),pjbmin)
+                    var_jb(1,k)=max(var_jb(1,k),zero)
                     if (var_jb(1,k) >=10.0_r_kind) var_jb(1,k)=zero
                  enddo
               endif
               if (tob) then
-                 itypex=itypey
                  ierr_t=0
                  do i =1,maxsub_t
                     if( icsubtype(nc) == isuble_t(itypex,i) ) then
@@ -654,9 +647,9 @@ contains
                           endif
                        enddo
                        if( ncount_t ==1) then
-                          write(6,*) 'READ_HDRAOB,WARNING!! tob:cannot find subtyep in the error,& 
+                          write(6,*) 'READ_HDRAOB,WARNING!! tob:cannot find subtype in the error,& 
                                       table,itype=',itypex,icsubtype(nc)
-                          write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_t
+                          write(6,*) 'read error table at column subtype as 0,error table column=',ierr_t
                        endif
                     endif
                  enddo
@@ -685,12 +678,11 @@ contains
                     endif
 !Temperature b
                     var_jb(3,k)=(one-del_t)*btabl_t(itypex,k1_t,ierr_t)+del_t*btabl_t(itypex,k2_t,ierr_t)
-                    var_jb(3,k)=max(var_jb(3,k),tjbmin)
+                    var_jb(3,k)=max(var_jb(3,k),zero)
                     if (var_jb(3,k) >=10.0_r_kind) var_jb(3,k)=zero
                  enddo
               endif
               if (qob) then
-                 itypex=itypey
                  ierr_q=0
                  do i =1,maxsub_q
                     if( icsubtype(nc) == isuble_q(itypex,i) ) then
@@ -705,9 +697,9 @@ contains
                           endif
                        enddo
                        if(ncount_q ==1 ) then
-                          write(6,*) 'READ_HDRAOB,WARNING!! qob:cannot find subtyep in the & 
+                          write(6,*) 'READ_HDRAOB,WARNING!! qob:cannot find subtype in the & 
                                      error table,itype=',itypex,icsubtype(nc)
-                          write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_q
+                          write(6,*) 'read error table at column subtype as 0,error table column=',ierr_q
                        endif
                     endif
                  enddo
@@ -734,12 +726,11 @@ contains
                     endif
 !Humidity b
                     var_jb(2,k)=(one-del_q)*btabl_q(itypex,k1_q,ierr_q)+del_q*btabl_q(itypex,k2_q,ierr_q)
-                    var_jb(2,k)=max(var_jb(2,k),qjbmin)
+                    var_jb(2,k)=max(var_jb(2,k),zero)
                     if (var_jb(2,k) >=10.0_r_kind) var_jb(2,k)=zero
                  enddo
              endif
              if (uvob) then
-                itypex=itypey
                 ierr_uv=0
                 do i =1,maxsub_uv
                    if( icsubtype(nc) == isuble_uv(itypex,i) ) then
@@ -754,9 +745,9 @@ contains
                           endif
                        enddo
                        if( ncount_uv == 1) then
-                          write(6,*) 'READ_HDRAOB,WARNING!! uvob:cannot find subtyep in the error,&
+                          write(6,*) 'READ_HDRAOB,WARNING!! uvob:cannot find subtype in the error,&
                                       table,itype=',itypex,icsubtype(nc)
-                          write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_uv
+                          write(6,*) 'read error table at column subtype as 0,error table column=',ierr_uv
                        endif
                     endif
                  enddo
@@ -782,7 +773,7 @@ contains
                    obserr(5,k)=max(obserr(5,k),werrmin)
 !Wind b
                    var_jb(5,k)=(one-del_uv)*btabl_uv(itypex,k1_uv,ierr_uv)+del_uv*btabl_uv(itypex,k2_uv,ierr_uv)
-                   var_jb(5,k)=max(var_jb(5,k),wjbmin)
+                   var_jb(5,k)=max(var_jb(5,k),zero)
                    if (var_jb(5,k) >=10.0_r_kind) var_jb(5,k)=zero
                 enddo
              endif
@@ -824,12 +815,13 @@ contains
 !          versus sensible temperature
 
 
+           call ufbint(lunin,hdr3,1,1,iret,hdstr3)
            stnelev=hdr3(1)
            if(abs(hdr2(7)) > r90 .or. abs(hdr2(8)) > 720._r_kind)then 
               if(print_verbose)write(6,*) ' invalid lat,lon ',id,obstype,hdr2(7),hdr2(8)
               cycle loop_readsb
            end if
-           if(psob)levs=1
+           toocold=.false.
            LOOP_K_LEVS: do k=1,levs
               if(tob .or. qob .or. psob)then
                  if(levdat(1,k) < 1. .or. levdat(1,k) > 1500.)then
@@ -837,7 +829,7 @@ contains
                     cycle LOOP_K_LEVS
                  end if
               end if
-              if(obsdat(1,k) < 0. .or. obsdat(1,k) > 900000.) then
+              if(obsdat(1,k) < 1000. .or. obsdat(1,k) > 900000.) then
                   if(print_verbose)write(6,*) ' invalid change in time ',id,obstype,k,obsdat(1,k) 
                   if(tob) tqm(k)=2
                   if(qob) qqm(k)=2
@@ -896,17 +888,6 @@ contains
               endif
               dlnpob=log(plevs(k))  ! ln(pressure in cb)
 
-              ndata=ndata+1
-              nodata=nodata+1
-              if(uvob)nodata=nodata+1
-              iout=ndata
-
-
-              if(ndata > maxobs) then
-                 write(6,*)'READ_HDRAOB:  ***WARNING*** ndata > maxobs for ',obstype
-                 ndata = maxobs
-              end if
-
               call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
 !             Extract pressure level and quality marks
@@ -917,6 +898,14 @@ contains
                     if(print_verbose)write(6,*)id,'invalid temp',k,levs,obsdat(7,k),plevs(k)
                     tqm(k)=12
                     usage=108._r_kind
+                    cycle loop_k_levs
+                 end if
+                 ndata=ndata+1
+                 nodata=nodata+1
+                 iout=ndata
+                 if(ndata > maxobs) then
+                    write(6,*)'READ_HDRAOB:  ***WARNING*** ndata > maxobs for ',obstype
+                    ndata = maxobs
                  end if
                  ppb=plevs(k)*10.
 !  setup later
@@ -980,11 +969,20 @@ contains
                     wqm(k)=12
                     usage=108._r_kind
                     if(print_verbose)write(6,*)id,'invalid dir ', k,levs,obsdat(5,k),obsdat(6,k),plevs(k)
+                    cycle loop_k_levs
                  end if
                  if(obsdat(5,k) < 0. .or. obsdat(5,k) > 300.) then
                     wqm(k)=12
                     usage=108._r_kind
                     if(print_verbose)write(6,*)id,'invalid spd ', k,levs,obsdat(5,k),obsdat(6,k),plevs(k)
+                    cycle loop_k_levs
+                 end if
+                 ndata=ndata+1
+                 nodata=nodata+2
+                 iout=ndata
+                 if(ndata > maxobs) then
+                    write(6,*)'READ_HDRAOB:  ***WARNING*** ndata > maxobs for ',obstype
+                    ndata = maxobs
                  end if
                  if(levs > 100 .or. plevs(1)-plevs(levs) < .01)then
                     call errormod_hdraob(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
@@ -1060,7 +1058,19 @@ contains
  
 !             Specific humidity 
               else if(qob) then
-!  setup later
+                 if(obsdat(8,k) < 100. .or. obsdat(8,k) > 350.) then
+                    if(print_verbose)write(6,*)id,'invalid td ', k,levs,obsdat(7,k),obsdat(8,k),plevs(k)
+                    qqm(k)=12.
+                    usage=108._r_kind
+                    cycle loop_k_levs
+                 end if
+                 ndata=ndata+1
+                 nodata=nodata+1
+                 iout=ndata
+                 if(ndata > maxobs) then
+                    write(6,*)'READ_HDRAOB:  ***WARNING*** ndata > maxobs for ',obstype
+                    ndata = maxobs
+                 end if
                  if(levs > 100 .or. plevs(1)-plevs(levs) < .01)then
                     call errormod_hdraob(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  else
@@ -1068,14 +1078,9 @@ contains
                     call errormod(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  end if
                  qoe=obserr(2,k)*errout*one_tenth
-                 if(obsdat(7,k) < 215. .or. qqm(k) > lim_qm) then
+                 if(obsdat(7,k) < 215. .or. toocold) then
                     qqm(k)=12.
-                    if(k < levs)qqm(k)=12.
-                    usage=108._r_kind
-                 end if
-                 if(obsdat(8,k) < 100. .or. obsdat(8,k) > 350.) then
-                    if(print_verbose)write(6,*)id,'invalid td ', k,levs,obsdat(7,k),obsdat(8,k),plevs(k)
-                    qqm(k)=12.
+                    if(k > 1)toocold=.true.
                     usage=108._r_kind
                  end if
 !   Need to convert from td to q
@@ -1125,7 +1130,17 @@ contains
                  if(obsdat(7,k) > 400. .or. stnelev > 7000.) pqm(k)=12.
                  if(plevs(k) > 200. .or. plevs(k) < 50.) pqm(k)=12.
                  if(obsdat(4,k)/grav > 5000.)pqm(k)=12.
-                 if(pqm(k) > lim_qm)usage=108._r_kind
+                 if(pqm(k) > lim_qm)then
+                   usage=108._r_kind
+                   exit loop_k_levs
+                 end if
+                 ndata=ndata+1
+                 nodata=nodata+1
+                 iout=ndata
+                 if(ndata > maxobs) then
+                    write(6,*)'READ_HDRAOB:  ***WARNING*** ndata > maxobs for ',obstype
+                    ndata = maxobs
+                 end if
                  poe=obserr(1,k)*one_tenth                !  convert from mb to cb
                  cdata_all(1,iout)=poe                     ! surface pressure error (cb)
                  cdata_all(2,iout)=dlon                    ! grid relative longitude

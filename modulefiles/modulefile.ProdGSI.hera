@@ -1,4 +1,4 @@
-#%Module######################################################################
+#%Module
 # NOAA-EMC/GSI
 #_____________________________________________________
 #proc ModulesHelp { } {
@@ -8,7 +8,7 @@
 ##}
 #module-whatis " NOAA-EMC/GSI whatis description"
 
-setenv CRTM_FIX /scratch2/NCEPDEV/nwprod/NCEPLIBS/fix/crtm_v2.3.0
+# setenv CRTM_FIX /scratch2/NCEPDEV/nwprod/NCEPLIBS/fix/crtm_v2.3.0
 
 # Load cmake
 module use -a /contrib/cmake/modulefiles

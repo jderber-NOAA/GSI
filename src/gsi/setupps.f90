@@ -268,21 +268,26 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
-     ikx=nint(data(ikxx,i))
-     itype=ictype(ikx)
-     if(itype == 120) then
-        rstation_id     = data(id,i)
-        read(station_id,'(i5,3x)',err=1200) idddd
-        stn_loop:do j=1,nhdps
-          if(idddd == hdpslist(j))then
-             data(iuse,i)=108.
-             muse(i) = .false.
-             exit stn_loop
-          end if
-        end do stn_loop
-     end if
-1200 continue
   end do
+!  If HD raobs available move prepbufr version to monitor
+  if(nhdps > 0)then
+     do i=1,nobs
+        ikx=nint(data(ikxx,i))
+        itype=ictype(ikx)
+        if(itype == 120) then
+           rstation_id     = data(id,i)
+           read(station_id,'(i5,3x)',err=1200) idddd
+           stn_loop:do j=1,nhdps
+             if(idddd == hdpslist(j))then
+                data(iuse,i)=108.
+                muse(i) = .false.
+                exit stn_loop
+             end if
+           end do stn_loop
+        end if
+1200    continue
+     end do
+  end if
 
   hr_offset=min_offset/60.0_r_kind
 !  Check for duplicate observations at same location

@@ -389,31 +389,36 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      iptrb=26    ! index of t perturbation
   end if
 
-  iprev_station=0
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
-     ikx=nint(data(ikxx,i))
-     itype=ictype(ikx)
-     if(itype == 120) then
-        rstation_id     = data(id,i)
-        read(station_id,'(i5,3x)',err=1200) idddd
-        if(idddd == iprev_station)then
-          data(iuse,i)=108.
-          muse(i) = .false.
-        else 
-           stn_loop:do j=1,nhdt
-             if(idddd == hdtlist(j))then
-                iprev_station=idddd
-                data(iuse,i)=108.
-                muse(i) = .false.
-!               write(6,*) ' in setupt ',idddd
-                exit stn_loop
-             end if
-           end do stn_loop
-        end if
-     end if
-1200 continue
   end do
+!  If HD raobs available move prepbufr version to monitor
+  if(nhdt > 0)then
+     iprev_station=0
+     do i=1,nobs
+        ikx=nint(data(ikxx,i))
+        itype=ictype(ikx)
+        if(itype == 120) then
+           rstation_id     = data(id,i)
+           read(station_id,'(i5,3x)',err=1200) idddd
+           if(idddd == iprev_station)then
+             data(iuse,i)=108.
+             muse(i) = .false.
+           else 
+              stn_loop:do j=1,nhdt
+                if(idddd == hdtlist(j))then
+                   iprev_station=idddd
+                   data(iuse,i)=108.
+                   muse(i) = .false.
+!                  write(6,*) ' in setupt ',idddd
+                   exit stn_loop
+                end if
+              end do stn_loop
+           end if
+        end if
+1200    continue
+     end do
+  end if
   var_jb=zero
 
 !  handle multiple reported data at a station

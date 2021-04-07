@@ -846,6 +846,10 @@ subroutine read_obs(ndata,mype)
     nhdq=izero
     nhduv=izero
     nhdps=izero
+    nodet=izero
+    nodeq=izero
+    nodeuv=izero
+    nodeps=izero
 
 !   Set data class and number of reader tasks.  Set logical flag to indicate 
 !   type type of GPS data (if present)

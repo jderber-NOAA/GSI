@@ -237,7 +237,7 @@ do jj=1,nsubwin
       call general_grid2sub(s2g_cv,hwork,wbundle%values)
    end if
 
-!$omp parallel sections private(istatus,ii,ic,id) 
+!$omp parallel sections private(istatus,ii,ic,id,uland,vland,uwter,vwter) 
 
 !$omp section
 

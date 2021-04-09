@@ -106,9 +106,9 @@ subroutine bkgvar(cvec,iflg)
   call gsi_bundlegetpointer(cvec,'stl',ptrstl,istatus)
   call gsi_bundlegetpointer(cvec,'sti',ptrsti,istatus)
   if(iflg == 0)then
-     sst=zero
-     ptrstl=zero
-     ptrsti=zero
+     if(i_sst > 0)sst=zero
+     if(i_stl > 0)ptrstl=zero
+     if(i_sti > 0)ptrsti=zero
   end if
 
 ! Surface fields

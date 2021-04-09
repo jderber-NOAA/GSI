@@ -3466,7 +3466,7 @@ subroutine bkerror_a_en(grady)
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
-  integer(i_kind) ii,nn,ip,istatus
+  integer(i_kind) ii,ip,istatus
 
   if (lsqrtb) then
      write(6,*)'bkerror_a_en: not for use with lsqrtb'

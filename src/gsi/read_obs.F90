@@ -1955,8 +1955,8 @@ subroutine read_obs(ndata,mype)
       call mpi_bcast(hdpslist,nhdps,mpi_integer,nodeps,mpi_comm_world,ierror)
     end if
     
-    if(mype == 0)write(6,*)'number of stations',nhdt,nhdq,nhduv,nhdps
-    if(mype == 0)write(6,*)'processors',nodet,nodeq,nodeuv,nodeps
+    if(mype == 0)write(6,*)'number of HD stations',nhdt,nhdq,nhduv,nhdps
+    if(mype == 0)write(6,*)'processors           ',nodet,nodeq,nodeuv,nodeps
 
 !   Collect number of gps profiles (needed later for qc)
     call mpi_allreduce(nprof_gps1,nprof_gps,1,mpi_integer,mpi_sum,mpi_comm_world,ierror)

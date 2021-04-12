@@ -331,9 +331,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            if(idddd == iprev_station)then
              data(iuse,i)=108.
              muse(i) = .false.
-!            if(idddd == 47582)then
-!               write(6,*) idddd,luse(i),mype,ictype(ikx),(data(k,i),k=1,15)
-!            end if
            else
               stn_loop:do j=1,nhdq
                 if(idddd == hdqlist(j))then
@@ -1214,17 +1211,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   character(7),parameter     :: obsclass = '      q'
   real(r_kind),dimension(miter) :: obsdiag_iuse
 
-        read(station_id,'(i5,3x)',err=1300) idddd
-        if(idddd == 47582)then
-          write(6,*) idddd,ictype(ikx),ddiff,qob,qges,presq,dtime
-          write(6,*) idddd,ictype(ikx),icsubtype(ikx),data(ilate,i),data(ilone,i)
-          write(6,*) idddd,ictype(ikx),data(iqc,i),data(iuse,i),errinv_final
-          write(6,*) obsclass,data(istnelv,i),data(iobshgt,i)
-          write(6,*) var_jb,rwgt,qsges,time_offset
-          write(6,*) errinv_input,errinv_adjst,errinv_final
-          write(6,*) idddd,ictype(ikx),luse(i),muse(i)
-        end if
- 1300   continue
            call nc_diag_metadata("Station_ID",              station_id             )
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )

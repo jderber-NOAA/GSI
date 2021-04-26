@@ -138,13 +138,14 @@ contains
   logical outside
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
-  character(80) hdstr,hdstr2,hdstr3,levstr
+  character(80) hdstr,hdstr2,hdstr3,levstr,hdtypestr
   character(80) obstr
   character(10) date
   character(8) subset
   character(8) prvstr,sprvstr     
-  character(8) c_station_id
+  character(8) c_station_id,id_station
   character(8) stnid
+  character(8) stntype
 
   integer(i_kind) ireadmg,ireadsb
   integer(i_kind) lunin,i,maxobs,j,idomsfc,nmsgmax,mxtb
@@ -182,7 +183,7 @@ contains
   real(r_kind) vdisterrmax,u00,v00
   real(r_kind) rminobs,rminan,es,dummy
   real(r_kind) del,terrmin,werrmin,perrmin,qerrmin,del_ps,del_q,del_t,del_uv
-  real(r_kind) tsavg,ff10,sfcr,zz
+  real(r_kind) tsavg,ff10,sfcr,zz,deltat
   real(r_kind) time_correction,fact
   real(r_kind),dimension(nsig):: presl,hgtl,lnpresl
   real(r_kind),dimension(nsig-1):: dpres
@@ -190,10 +191,11 @@ contains
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
   real(r_kind) :: zob,tref
 
-  real(r_double) rstation_id
+  real(r_double) rstation_id,r_station
   real(r_double),dimension(2):: hdr
-  real(r_double),dimension(8):: hdr2
+  real(r_double),dimension(9):: hdr2
   real(r_double),dimension(1):: hdr3
+  real(r_double),dimension(1):: hdrtype
   real(r_double),dimension(2,maxlevs):: levdat
   real(r_double),dimension(8,maxlevs):: var_jb,obserr
   real(r_double),dimension(8,maxlevs):: obsdat
@@ -203,10 +205,12 @@ contains
 
 !  equivalence to handle character names
   equivalence(rstation_id,c_station_id)
+  equivalence(r_station,id_station)
 
 !  data statements
   data hdstr  /'WMOB WMOS'/
   data hdstr2 /'YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH' /
+  data hdtypestr /'BUHD' /
   data hdstr3 /'HEIT'/
   data obstr  /'LTDS LATDH LONDH GP10 WSPD WDIR TMDB TMDP'/
   data levstr /'PRLC GP07'/
@@ -223,7 +227,7 @@ contains
 !       equivalence (rval,cval)
 !       character(7) flnm
 
-  logical print_verbose
+  logical print_verbose,descend
   
   print_verbose=.false.
   if(verbose) print_verbose=.true.
@@ -314,10 +318,6 @@ contains
            call stop2(50)
         endif
 
-!       Extract type information
-        if(psob .or. tob .or. qob)kx=119
-        if(uvob)kx=219
-
 
 !       call ufbint(lunin,hdr,2,1,iret,hdstr)
 !       igroup=hdr(1)
@@ -338,7 +338,37 @@ contains
 
         call ufbint(lunin,levdat,2,maxlevs,levs,levstr)
         if(levs > maxlevs)write(6,*) ' not enough levels increase maxlevs ',levs,maxlevs
-        if(uvob .and. levdat(1,2) > 1.e8)kx=218
+        call ufbint(lunin,obsdat,8,maxlevs,levs,obstr)
+        deltat=0.
+        descend=.false.
+        if(obsdat(1,1) < 1.e6 .and. obsdat(1,levs) < 1.e6)then
+           deltat=obsdat(1,levs)-obsdat(1,1)
+           if(deltat < -1.) descend=.true.
+        end if
+!       Extract type information
+        if(psob .or. tob .or. qob)then
+            if(.not. descend) then
+               kx=119 
+            else
+               kx=118
+               if(psob) cycle loop_report
+            end if
+        else if(uvob)then
+            if(.not. descend) then
+               if(levdat(1,2) > 1.e8)then
+                  kx=218
+               else
+                  kx=219 
+               end if
+            else
+               if(levdat(1,2) > 1.e8)then
+!  Should not have height only for descent observation
+                  cycle loop_report
+               else
+                  kx=217
+               end if
+            end if
+        end if
 !  Match ob to proper convinfo type
         ncsave=0
         matchloop:do ncx=1,ntmatch
@@ -353,7 +383,7 @@ contains
 
 !       write(6,*) ' levs =',levs
         maxobs=maxobs+max(1,levs)
-        nx=1
+        nx=ictype(ncsave)
         tab(ntb,1)=ncsave
         tab(ntb,2)=nx
         tab(ntb,3)=levs
@@ -408,7 +438,7 @@ contains
            nc=tab(ntb,1)
            kx = ictype(nc) 
            if(nc <= 0 .or. tab(ntb,2) /= nx) then
-              write(6,*) nc,tab(ntb,2),ntb
+              if(nc /= 0)write(6,*) obstype,nc,(tab(ntb,i),i=1,3),ntb
               cycle loop_readsb
            end if
                  
@@ -429,6 +459,20 @@ contains
 
            if(psob)levs=1
 
+           if(qob)then
+              call ufbint(lunin,hdrtype,1,1,iret,hdtypestr)
+              r_station=hdrtype(1)
+              read(id_station,*) stntype
+              if(index(stntype,'IUD') /=0 .or. index( stntype,'IUX') /=0)then
+                 if(kx == 119 .or. kx == 219 .or. kx == 218)then
+                    write(6,*) ' inconsistent descent ',kx,id,levs,stntype
+                 end if
+              else
+                 if(kx == 118 .or. kx == 217)then
+                    write(6,*) ' inconsistent ascent ',kx,id,levs,stntype
+                 end if
+              end if
+           end if
 !     Combine height obs into single array and divide by g
            do k=1,levs
 !             if(id == 47582)then
@@ -704,7 +748,7 @@ contains
                     endif
                  enddo
                  do k=1,levs
-                    ppb=plevs(k)
+                    ppb=plevs(k)*10.
                     ppb=max(zero,min(ppb,r2000))
                     if(ppb>=etabl_q(itypex,1,1)) k1_q=1
                     do kl=1,32
@@ -829,7 +873,7 @@ contains
                     cycle LOOP_K_LEVS
                  end if
               end if
-              if(obsdat(1,k) < 1000. .or. obsdat(1,k) > 900000.) then
+              if(obsdat(1,k) < 0. .or. obsdat(1,k) > 900000.) then
                   if(print_verbose)write(6,*) ' invalid change in time ',id,obstype,k,obsdat(1,k) 
                   if(tob) tqm(k)=2
                   if(qob) qqm(k)=2
@@ -949,17 +993,19 @@ contains
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
-                 if(usage < 100.)then
-                    newstation=.true.
-                    do i=1,nstations
-                       if(list_stations(i) == id) then
-                          newstation=.false.
-                          exit
+                 if(kx == 119)then
+                    if(usage < 100.)then
+                       newstation=.true.
+                       do i=1,nstations
+                          if(list_stations(i) == id) then
+                             newstation=.false.
+                             exit
+                          end if
+                       end do
+                       if(newstation)then
+                          nstations=nstations+1
+                          list_stations(nstations)=id
                        end if
-                    end do
-                    if(newstation)then
-                       nstations=nstations+1
-                       list_stations(nstations)=id
                     end if
                  end if
 
@@ -1042,17 +1088,19 @@ contains
                     cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
 !                if(kx == 219 .and. k == 5)write(6,*) k,kx,c_station_id,(cdata_all(i,iout),i=1,25)
-                 if(usage < 100.)then
-                    newstation=.true.
-                    do i=1,nstations
-                       if(list_stations(i) == id) then
-                          newstation=.false.
-                          exit
+                 if(kx == 219 .or. kx == 218)then
+                    if(usage < 100.)then
+                       newstation=.true.
+                       do i=1,nstations
+                          if(list_stations(i) == id) then
+                             newstation=.false.
+                             exit
+                          end if
+                       end do
+                       if(newstation)then
+                          nstations=nstations+1
+                          list_stations(nstations)=id
                        end if
-                    end do
-                    if(newstation)then
-                       nstations=nstations+1
-                       list_stations(nstations)=id
                     end if
                  end if
  
@@ -1112,18 +1160,20 @@ contains
                  if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! q perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(15,iout),cdata_all(16,iout),cdata_all(12,iout),cdata_all(1,iout))
- 
-                 if(usage < 100.)then
-                    newstation=.true.
-                    do i=1,nstations
-                       if(list_stations(i) == id) then
-                          newstation=.false.
-                          exit
+
+                 if(kx == 119)then
+                    if(usage < 100.)then
+                       newstation=.true.
+                       do i=1,nstations
+                          if(list_stations(i) == id) then
+                             newstation=.false.
+                             exit
+                          end if
+                       end do
+                       if(newstation)then
+                          nstations=nstations+1
+                          list_stations(nstations)=id
                        end if
-                    end do
-                    if(newstation)then
-                       nstations=nstations+1
-                       list_stations(nstations)=id
                     end if
                  end if
               else if(psob) then

@@ -143,6 +143,9 @@ subroutine prt_guess(sgrep)
   cvar(15)='pcpb'
   cvar(16)='aftb'
 
+!$omp parallel sections 
+
+
   zloc(1)          = sum   (ges_u_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(2)          = sum   (ges_v_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(3)          = sum   (ges_tv_it (2:lat1+1,2:lon1+1,1:nsig))
@@ -156,6 +159,7 @@ subroutine prt_guess(sgrep)
   zloc(11)         = sum   (ges_prsl  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(12)         = sum   (ges_ps_it (2:lat1+1,2:lon1+1             ))
   zloc(13)         = sum   (sfct      (2:lat1+1,2:lon1+1,       ntsfc))
+!$omp section
   zloc(nvars+1)    = minval(ges_u_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(nvars+2)    = minval(ges_v_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(nvars+3)    = minval(ges_tv_it (2:lat1+1,2:lon1+1,1:nsig))
@@ -169,6 +173,7 @@ subroutine prt_guess(sgrep)
   zloc(nvars+11)   = minval(ges_prsl  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(nvars+12)   = minval(ges_ps_it (2:lat1+1,2:lon1+1             ))
   zloc(nvars+13)   = minval(sfct      (2:lat1+1,2:lon1+1,       ntsfc))
+!$omp section
   zloc(2*nvars+1)  = maxval(ges_u_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+2)  = maxval(ges_v_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+3)  = maxval(ges_tv_it (2:lat1+1,2:lon1+1,1:nsig))
@@ -185,6 +190,7 @@ subroutine prt_guess(sgrep)
   zloc(3*nvars+1)  = real(lat1*lon1*nsig*ntsig,r_kind)
   zloc(3*nvars+2)  = real(lat1*lon1*ntsig,r_kind)
   zloc(3*nvars+3)  = real(lat1*lon1*nsig*ntsig,r_kind)
+!$omp end parallel sections
 
 
 ! Gather contributions

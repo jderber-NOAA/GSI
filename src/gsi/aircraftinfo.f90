@@ -342,6 +342,16 @@ contains
     call indexc40(ntail_update,csort,idx_csort)
 
     do jj=1,ntail_update-obsolete
+       do i=1,npredt
+          if (i==2) then
+             varA_t(i,jj)=max(varA_t(i,jj),1.0e-6_r_kind)
+          else if (i==3) then
+             varA_t(i,jj)=max(varA_t(i,jj),1.0e-7_r_kind)
+          else
+             varA_t(i,jj)=max(varA_t(i,jj),1.0e-5_r_kind)
+          end if
+       end do
+
        j = idx_csort(jj)
        write(lunout,'(1x,a10,1x,i5,9(1x,f12.6),1x,i7)') &
             taillist(j),jj,(predt(i,j),i=1,npredt), &

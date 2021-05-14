@@ -287,7 +287,7 @@ contains
 
     implicit none
 
-    biaspredvar = one_tenth ! berror var for radiance bias coeffs
+    biaspredvar = 1000._r_kind ! berror var for radiance bias coeffs
     jpch_rad = 0            ! total number of channels over all instruments & satellites
     retrieval = .false.     ! .true. = apply physical SST retrieval with AVHRR data
     diag_rad = .true.       ! .true.=generate radiance diagnostic file
@@ -1265,6 +1265,7 @@ contains
           rewind lunout
           do jch=1,jpch_rad
              do i=1,npred
+                varA(i,jch)=max(varA(i,jch),1.e-6_r_kind)
                 varx(i)=varA(i,jch)
              end do
              write(lunout,'(I5,1x,A20,1x,I5,e15.7/2(4x,10e15.7/))') jch,nusis(jch),&

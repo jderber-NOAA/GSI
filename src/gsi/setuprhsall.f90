@@ -574,9 +574,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      call mpl_allreduce(npredt,ntail,rstats_t)
   end if
 
-  if (newpc4pred .or. aircraft_t_bc_pof .or. aircraft_t_bc) then
-     call reset_predictors_var
-  end if
+! if (newpc4pred .or. aircraft_t_bc_pof .or. aircraft_t_bc) then
+!    if(jiter == jiterstart)call reset_predictors_var
+! end if
 
 ! Collect satellite and precip. statistics
   call mpi_reduce(aivals,aivals1,size(aivals1),mpi_rtype,mpi_sum,mype_rad, &

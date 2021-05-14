@@ -60,7 +60,7 @@ subroutine prt_guess(sgrep)
   integer(i_kind) ntsig
   integer(i_kind) ntsfc
   integer(i_kind) n_actual_clouds
-  real(r_kind) :: zloc(3*nvars+3),zall(3*nvars+3,npe),zz
+  real(r_kind) :: zloc(3*nvars+2),zall(3*nvars+2,npe),zz
   real(r_kind) :: zmin(nvars+3),zmax(nvars+3),zavg(nvars+3)
   real(r_kind),pointer,dimension(:,:  )::ges_ps_it=>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_u_it=>NULL()
@@ -187,15 +187,14 @@ subroutine prt_guess(sgrep)
   zloc(2*nvars+11) = maxval(ges_prsl  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(2*nvars+12) = maxval(ges_ps_it (2:lat1+1,2:lon1+1             ))
   zloc(2*nvars+13) = maxval(sfct      (2:lat1+1,2:lon1+1,       ntsfc))
-  zloc(3*nvars+1)  = real(lat1*lon1*nsig*ntsig,r_kind)
-  zloc(3*nvars+2)  = real(lat1*lon1*ntsig,r_kind)
-  zloc(3*nvars+3)  = real(lat1*lon1*nsig*ntsig,r_kind)
+  zloc(3*nvars+1)  = real(lat1*lon1*nsig,r_kind)
+  zloc(3*nvars+2)  = real(lat1*lon1,r_kind)
 !$omp end parallel sections
 
 
 ! Gather contributions
-  call mpi_allgather(zloc,3*nvars+3,mpi_rtype, &
-                   & zall,3*nvars+3,mpi_rtype, mpi_comm_world,ierror)
+  call mpi_allgather(zloc,3*nvars+2,mpi_rtype, &
+                   & zall,3*nvars+2,mpi_rtype, mpi_comm_world,ierror)
 
   if (mype==0) then
      zmin=zero

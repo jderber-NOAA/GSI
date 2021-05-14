@@ -384,21 +384,9 @@ contains
     implicit none
 
     integer(i_kind) i,j,ii
-    real(r_kind) stndev
     real(r_kind) obs_count
     logical new_tail
     
-    stndev = one/biaspredvar
-    do i=1,max(1,nrclen)
-       varprd(i)=stndev
-    end do
-
-    if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then 
-       do i=nrclen-ntclen+1,max(1,nrclen)
-          varprd(i)=one/biaspredt
-       end do
-    end if
-
 !   set variances for bias predictor coeff. based on diagonal info
 !   of previous analysis error variance
     if (.not. twodvar_regional .and. newpc4pred) then
@@ -407,76 +395,51 @@ contains
           do j=1,npred
              ii=ii+1
              if (inew_rad(i)) then
-                varprd(ii)=10000.0_r_kind
+                varA(j,i)=10000.
              else
+                varA_t(j,i)=max(varA_t(j,i),1.0e-6_r_kind)
                 if (ostats(i)<=20.0_r_kind) then 
                    varA(j,i)=two*varA(j,i)+1.0e-6_r_kind
-                   varprd(ii)=varA(j,i)
                 else
-                   varprd(ii)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
+                   varA(j,i)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
                 end if
-                if (varprd(ii)>r10) varprd(ii)=r10
-                if (varA(j,i)>10000.0_r_kind) varA(j,i)=10000.0_r_kind
              end if
+             varprd(ii)=varA(j,i)
           end do
        end do
-
-       if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then
-          ii=nrclen-ntclen
-          do i=1,ntail
-             do j=1,npredt
-                ii=ii+1
-
-                if (aircraft_t_bc_pof) then 
-                   obs_count = ostats_t(j,i)
-                   new_tail = varA_t(j,i)==zero
-                end if
-                if (aircraft_t_bc) then 
-                   obs_count = ostats_t(1,i)
-                   new_tail = .true.
-                   if (any(varA_t(:,i)/=zero)) new_tail = .false.
-                end if
-
-                if (new_tail) then
-                   varprd(ii)=one_tenth*one_tenth
-                   if (aircraft_t_bc .and. j==2) varprd(ii)=1.0e-4_r_kind
-                   if (aircraft_t_bc .and. j==3) varprd(ii)=1.0e-5_r_kind
-                else
-                   if (obs_count<=10.0_r_kind) then
-                      if (aircraft_t_bc .and. j==2) then
-                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-6_r_kind
-                      else if (aircraft_t_bc .and. j==3) then
-                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-7_r_kind
-                      else
-                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-5_r_kind
-                      end if
-                      varprd(ii)=varA_t(j,i)
-                   else
-                      if (aircraft_t_bc .and. j==2) then
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
-                      else if (aircraft_t_bc .and. j==3) then
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
-                      else
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
-                      end if
-                   end if
-                   if (varprd(ii)>one_tenth) varprd(ii)=one_tenth
-                   if (varA_t(j,i)>one_tenth) varA_t(j,i)=one_tenth
-                   if (aircraft_t_bc .and. j==2) then
-                      if (varprd(ii)>1.0e-3_r_kind) varprd(ii)=1.0e-3_r_kind
-                      if (varA_t(j,i)>1.0e-3_r_kind) varA_t(j,i)=1.0e-3_r_kind
-                   end if
-                   if (aircraft_t_bc .and. j==3) then
-                      if (varprd(ii)>1.0e-4_r_kind) varprd(ii)=1.0e-4_r_kind
-                      if (varA_t(j,i)>1.0e-4_r_kind) varA_t(j,i)=1.0e-4_r_kind
-                   end if
-                end if
-             end do
-          end do
-       end if
     end if
 
-    return
+    if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then
+       ii=nrclen-ntclen
+       do i=1,ntail
+          do j=1,npredt
+             ii=ii+1
+
+             if (aircraft_t_bc_pof) then 
+                new_tail = varA_t(j,i)==zero
+             end if
+             if (aircraft_t_bc) then 
+                new_tail = .true.
+                if (any(varA_t(:,i)/=zero)) new_tail = .false.
+             end if
+
+             varA_t(j,i)=max(varA_t(j,i),1.0e-7_r_kind)
+             if (new_tail) then
+                varA_t(j,i)= 10000.
+                varprd(ii)=varA_t(j,i)
+             else if (aircraft_t_bc .and. j==2) then
+                varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
+             else if (aircraft_t_bc .and. j==3) then
+                varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
+             else
+                varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
+             end if
+             varprd(ii)=varA_t(j,i)
+          end do
+       end do
+    end if
+
+   return
   end subroutine set_predictors_var
 
 
@@ -497,7 +460,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only:  one,one_tenth
+    use constants, only:  one,one_tenth,zero
     use radinfo, only: newpc4pred,jpch_rad,npred,ostats,inew_rad,iuse_rad
     use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t
     use gridmod, only: twodvar_regional
@@ -580,50 +543,38 @@ contains
 
 !   set a coeff. factor for variances of control variables
     lfact=step_start
-    vprecond=lfact
+    if(diag_precon)vprecond=lfact
 
-    if(diag_precon)then
-      if(newpc4pred)then
-!       for radiance bias predictor coeff.
-        nclen1=nclen-nrclen
-        ii=0
-        do i=1,jpch_rad
-           do j=1,npred
-              ii=ii+1
-!             if (ostats(i)>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats(j,i)*varprd(ii))
-              if (ostats(i)>zero) vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
-              if (ostats(i)>20.0_r_kind) then
-                 if (rstats(j,i)>zero) then
-                    varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
-                 else
-                    varA(j,i)=10000.0_r_kind
-                 end if
-              end if
-           end do
-        end do
-
-!       for aircraft temperature bias predictor coeff.
-        if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then
-          nclen1=nclen-ntclen
-          ii=0
-          jj=nrclen-ntclen
-          do i=1,ntail
-             do j=1,npredt
-                ii=ii+1
-                jj=jj+1
-
-                if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
-                if (aircraft_t_bc) obs_count = ostats_t(1,i)
-
-!               if (obs_count>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats_t(j,i)*varprd(jj))
-                if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
-                if (obs_count>3.0_r_kind) then
-                   varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
-                end if
-             end do
+    if(newpc4pred)then
+!      for radiance bias predictor coeff.
+       nclen1=nclen-nrclen
+       ii=0
+       do i=1,jpch_rad
+          do j=1,npred
+             ii=ii+1
+!            if (ostats(i)>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats(j,i)*varprd(ii))
+             if (diag_precon .and. ostats(i)>zero) vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
+             varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
           end do
-        end if
-      end if
+       end do
+
+!      for aircraft temperature bias predictor coeff.
+       if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then
+         nclen1=nclen-ntclen
+         ii=0
+         jj=nrclen-ntclen
+         do i=1,ntail
+            do j=1,npredt
+               ii=ii+1
+               jj=jj+1
+
+
+!              if (obs_count>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats_t(j,i)*varprd(jj))
+               if (diag_precon) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
+               varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
+            end do
+         end do
+       end if
     end if
     return
 

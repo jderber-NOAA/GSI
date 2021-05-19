@@ -200,7 +200,7 @@ subroutine compute_derived(mype,init_pass)
         do j=1,lon2
            do i=1,lat2
 ! Limit q to be >= qmin
-              ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
+!             ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
 ! limit q to be <= ges_qsat
               if(clip_supersaturation) ges_q(i,j,k) = min(ges_q(i,j,k),ges_qsat(i,j,k,ii))
            end do

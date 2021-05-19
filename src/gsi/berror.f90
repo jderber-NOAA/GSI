@@ -426,12 +426,14 @@ contains
              varA_t(j,i)=max(varA_t(j,i),1.0e-7_r_kind)
              if (new_tail) then
                 varA_t(j,i)= 10000.
-                varprd(ii)=varA_t(j,i)
              else if (aircraft_t_bc .and. j==2) then
+                varA_t(j,i)=max(varA_t(j,i),1.0e-6_r_kind)
                 varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
              else if (aircraft_t_bc .and. j==3) then
+                varA_t(j,i)=max(varA_t(j,i),1.0e-7_r_kind)
                 varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
              else
+                varA_t(j,i)=max(varA_t(j,i),1.0e-5_r_kind)
                 varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
              end if
              varprd(ii)=varA_t(j,i)

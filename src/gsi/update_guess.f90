@@ -260,12 +260,14 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
            if (trim(guess(ic))=='q') then
-               call upd_positive_fldr3_(ptr3dges,ptr3dinc, qmin)
+!              call upd_positive_fldr3_(ptr3dges,ptr3dinc, qmin)
+               ptr3dges = ptr3dges + ptr3dinc
                if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),ges_qsat(:,:,:,it))
                cycle
            endif
            if (trim(guess(ic))=='oz') then
-               call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
+               ptr3dges = ptr3dges + ptr3dinc
+!              call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
                cycle
            endif
            if (trim(guess(ic))=='w') then

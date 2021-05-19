@@ -849,7 +849,6 @@ contains
               cycle loop_readsb
            end if
            toocold=.false.
-           if(id == 94430)write(6,*) id,t4dv,hdr2
            LOOP_K_LEVS: do k=1,levs
               if(tob .or. qob .or. psob)then
                  if(levdat(1,k) < one .or. levdat(1,k) > 1500._r_kind)then

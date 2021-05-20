@@ -395,14 +395,16 @@ subroutine update_guess(sval,sbias)
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr3dges,istatus)
-           call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
+           ptr3dges = ptr3dges + ptr3dinc
+!          call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
            cycle
         endif
         id=getindex(svars2d,gases(ic))
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr2dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr2dges,istatus)
-           call upd_positive_fldr2_(ptr2dges,ptr2dinc,tgmin)
+           ptr2dges = ptr2dges + ptr2dinc
+!          call upd_positive_fldr2_(ptr2dges,ptr2dinc,tgmin)
            cycle
         endif
      enddo

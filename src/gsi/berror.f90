@@ -423,7 +423,6 @@ contains
                 if (any(varA_t(:,i)/=zero)) new_tail = .false.
              end if
 
-             varA_t(j,i)=max(varA_t(j,i),1.0e-7_r_kind)
              if (new_tail) then
                 varA_t(j,i)= 10000.
              else if (aircraft_t_bc .and. j==2) then

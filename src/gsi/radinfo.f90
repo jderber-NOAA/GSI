@@ -810,7 +810,8 @@ contains
 
     if (newpc4pred) then
        allocate(ostats(jpch_rad),rstats(npred,jpch_rad),varA(npred,jpch_rad))
-       varA = zero
+!    set default values - used when no previous observations
+       varA = 10000._r_kind
        ostats = zero
        rstats = zero_quad 
 

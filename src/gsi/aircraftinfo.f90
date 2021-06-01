@@ -217,7 +217,8 @@ contains
     predt = zero
 
     allocate(ostats_t(npredt,max_tail), rstats_t(npredt,max_tail),varA_t(npredt,max_tail))
-    varA_t = zero
+!   Set default value - used when no previous observations
+    varA_t = 10000._r_kind
     ostats_t = zero_quad
     rstats_t = zero_quad
 

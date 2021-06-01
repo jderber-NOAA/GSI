@@ -447,8 +447,8 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use radinfo, only: ostats,rstats,jpch_rad,npred,newpc4pred
-    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,ostats_t,rstats_t
+    use radinfo, only: ostats,rstats,jpch_rad,npred,newpc4pred,varA
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,ostats_t,rstats_t,varA_t
     use jfunc, only: nclen,nrclen,step_start,ntclen,diag_precon
     use constants, only:  zero,one
     implicit none
@@ -476,7 +476,7 @@ contains
               ii=ii+1
 !             vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats(j,i)*varprd(ii))
               vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
-              varA(j,i)=varprd(ii)
+              varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
            end do
         end do
       end if
@@ -495,7 +495,7 @@ contains
 !               vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats_t(j,i)*varprd(jj))
                 vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
 !   save updated variance for output
-                varA(j,i)=varprd(ii)
+                varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
              end do
           end do
       end if

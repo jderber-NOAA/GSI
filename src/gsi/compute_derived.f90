@@ -196,16 +196,6 @@ subroutine compute_derived(mype,init_pass)
      call gsi_bundlegetpointer (gsi_metguess_bundle(ii),'q',ges_q,ier)
      if (ier/=0) exit
      if(ii == ntguessig) call q_diag(ii,mype)
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-! Limit q to be >= qmin
-              ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
-! limit q to be <= ges_qsat
-              if(clip_supersaturation) ges_q(i,j,k) = min(ges_q(i,j,k),ges_qsat(i,j,k,ii))
-           end do
-        end do
-     end do
   end do
 
 ! Load guess cw for use in inner loop

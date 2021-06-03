@@ -846,7 +846,7 @@ contains
                       cfound = .true.
                       nfound(j) = .true.
                       do i=1,npred
-                         if(varx(i) < 1.e-9_r_kind))varx(i)=10000._r_kind
+                         if(varx(i) < 1.e-9_r_kind)varx(i)=10000._r_kind
                          varA(i,j)=varx(i)
                       end do
                       ostats(j)=ostatsx

@@ -850,7 +850,7 @@ contains
                          varA(i,j)=varx(i)
                       end do
                       ostats(j)=ostatsx
-                      if ((any(varx/=zero) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) & 
+                      if ((any(varx/=10000._r_kind) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) & 
                          inew_rad(j)=.false.
                       cycle read3
                    end if

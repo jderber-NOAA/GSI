@@ -407,12 +407,16 @@ contains
          ii=nrclen-ntclen
          do i=1,ntail
 !   grow error
-            if(npredt >=1)varA_t(1,i)=1.005_r_kind*varA_t(1,i)+1.0e-5_r_kind
-            if(npredt >=2)varA_t(2,i)=1.005_r_kind*varA_t(2,i)+1.0e-6_r_kind
-            if(npredt >=3)varA_t(3,i)=1.005_r_kind*varA_t(3,i)+1.0e-7_r_kind
 
 !   save grown error for use in analysis
             do j=1,npredt
+               if(npredt ==2 .and. aircraft_t_bc)then
+                  varA_t(2,i)=1.005_r_kind*varA_t(2,i)+1.0e-6_r_kind
+               if(npredt ==3 .and. aircraft_t_bc)then
+                  varA_t(3,i)=1.005_r_kind*varA_t(3,i)+1.0e-7_r_kind
+               else
+                  varA_t(1,i)=1.005_r_kind*varA_t(1,i)+1.0e-5_r_kind
+               end if
                ii=ii+1
                varprd(ii)=varA_t(j,i)
             end do

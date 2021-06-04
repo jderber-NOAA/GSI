@@ -375,16 +375,13 @@ contains
 !
 !$$$
     use constants, only:  zero,one,two,one_tenth,r10
-    use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
-    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t,varA_t
+    use radinfo, only: varA,jpch_rad,npred,newpc4pred
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,varA_t
     use gridmod, only: twodvar_regional
     use jfunc, only: nrclen, ntclen
     implicit none
 
     integer(i_kind) i,j,ii
-    real(r_kind) stndev
-    real(r_kind) obs_count
-    logical new_tail
     
 !   Update variance for bias correction coefficient based on empirical factors
 !   due to growth of error from one analysis time to the next
@@ -398,7 +395,7 @@ contains
 !   grow error
              varA(j,i)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
 !   save grown error for use in analysis
-             varprd(ii)=varA(j,i)
+             varprd(ii)=min(varA(j,i),r10)
           end do
         end do
       end if
@@ -408,17 +405,17 @@ contains
          do i=1,ntail
 !   grow error
 
-!   save grown error for use in analysis
             do j=1,npredt
                if(npredt ==2 .and. aircraft_t_bc)then
                   varA_t(2,i)=1.005_r_kind*varA_t(2,i)+1.0e-6_r_kind
-               if(npredt ==3 .and. aircraft_t_bc)then
+               else if(npredt ==3 .and. aircraft_t_bc)then
                   varA_t(3,i)=1.005_r_kind*varA_t(3,i)+1.0e-7_r_kind
                else
                   varA_t(1,i)=1.005_r_kind*varA_t(1,i)+1.0e-5_r_kind
                end if
                ii=ii+1
-               varprd(ii)=varA_t(j,i)
+!   save grown error for use in analysis
+               varprd(ii)=min(varA_t(j,i),one_tenth)
             end do
          end do
       end if
@@ -451,8 +448,8 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use radinfo, only: ostats,rstats,jpch_rad,npred,newpc4pred,varA
-    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,ostats_t,rstats_t,varA_t
+    use radinfo, only: rstats,jpch_rad,npred,newpc4pred,varA
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,rstats_t,varA_t
     use jfunc, only: nclen,nrclen,step_start,ntclen,diag_precon
     use constants, only:  zero,one
     implicit none

@@ -151,7 +151,7 @@ contains
 
 ! !USES:
 
-    use constants, only: zero,zero_quad
+    use constants, only: zero,zero_quad,one_tenth
     use mpimod, only: mype
     use obsmod, only: iadate
     use gsi_io, only: verbose
@@ -218,7 +218,7 @@ contains
 
     allocate(ostats_t(npredt,max_tail), rstats_t(npredt,max_tail),varA_t(npredt,max_tail))
 !   Set default value - used when no previous observations
-    varA_t = 10000._r_kind
+    varA_t = one_tenth
     ostats_t = zero_quad
     rstats_t = zero_quad
 
@@ -234,7 +234,7 @@ contains
        do ip=1,npredt
           ostats_t(ip,j)=ostatsx(ip)
           predt(ip,j)=predr(ip)
-          if(varx(ip) < 1.e-9_r_kind)varx(ip)=10000._r_kind
+          if(varx(ip) < 1.e-11_r_kind)varx(ip)=one_tenth
           varA_t(ip,j)=varx(ip)
        end do
     end do

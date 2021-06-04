@@ -408,14 +408,17 @@ contains
             do j=1,npredt
                if(npredt ==2 .and. aircraft_t_bc)then
                   varA_t(2,i)=1.005_r_kind*varA_t(2,i)+1.0e-6_r_kind
+                  varA_t(2,i)=min(varA_t(2,i),1.0e-3_r_kind)
                else if(npredt ==3 .and. aircraft_t_bc)then
                   varA_t(3,i)=1.005_r_kind*varA_t(3,i)+1.0e-7_r_kind
+                  varA_t(3,i)=min(varA_t(3,i),1.0e-4_r_kind)
                else
                   varA_t(1,i)=1.005_r_kind*varA_t(1,i)+1.0e-5_r_kind
+                  varA_t(1,i)=min(varA_t(1,i),one_tenth)
                end if
                ii=ii+1
 !   save grown error for use in analysis
-               varprd(ii)=min(varA_t(j,i),one_tenth)
+               varprd(ii)=varA_t(j,i)
             end do
          end do
       end if

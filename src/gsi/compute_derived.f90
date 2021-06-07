@@ -117,7 +117,7 @@ subroutine compute_derived(mype,init_pass)
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
-  use constants, only: zero,one,one_tenth,half,fv,qmin,qcmin,ten,t0c,five,r0_05 
+  use constants, only: zero,one,one_tenth,half,fv,ten,t0c,five,r0_05 
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab

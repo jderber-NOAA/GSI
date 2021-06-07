@@ -109,7 +109,7 @@ subroutine update_guess(sval,sbias)
   use mpimod, only: mype
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,&
                        r100,one_tenth,tiny_r_kind
-  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation,jiter,jiterend
+  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation,jiter,miter
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone,&
        l_reg_update_hydro_delz
@@ -260,7 +260,7 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
            if (trim(guess(ic))=='q') then
-               if(jiter == jiterend)then
+               if(jiter == miter)then
                   call upd_positive_fldr3_(ptr3dges,ptr3dinc, qmin)
                else
                   ptr3dges = ptr3dges + ptr3dinc
@@ -269,7 +269,7 @@ subroutine update_guess(sval,sbias)
                cycle
            endif
            if (trim(guess(ic))=='oz') then
-               if(jiter == jiterend)then
+               if(jiter == miter)then
                   call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
                else
                   ptr3dges = ptr3dges + ptr3dinc
@@ -401,7 +401,7 @@ subroutine update_guess(sval,sbias)
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr3dges,istatus)
-           if(jiter == jiterend)then
+           if(jiter == miter)then
               call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
            else
               ptr3dges = ptr3dges + ptr3dinc
@@ -412,7 +412,7 @@ subroutine update_guess(sval,sbias)
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr2dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr2dges,istatus)
-           if(jiter == jiterend)then
+           if(jiter == miter)then
               call upd_positive_fldr2_(ptr2dges,ptr2dinc,tgmin)
            else
               ptr2dges = ptr2dges + ptr2dinc

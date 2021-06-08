@@ -468,7 +468,9 @@ contains
 
 !   set a coeff. factor for variances of control variables
     lfact=step_start
-    vprecond=lfact
+    do i=1,nclen-nrclen
+       vprecond(i)=5._r_kind*lfact
+    end do
 
     if(diag_precon)then
       if(newpc4pred)then
@@ -478,8 +480,8 @@ contains
         do i=1,jpch_rad
            do j=1,npred
               ii=ii+1
-!             vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats(j,i)*varprd(ii))
-              vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
+
+              vprecond(nclen1+ii)=0.8_r_kind/(one+rstats(j,i)*varprd(ii))
               varA(j,i)=min(10000._r_kind,one/(one/varprd(ii)+rstats(j,i)))
            end do
         end do
@@ -495,9 +497,7 @@ contains
                 ii=ii+1
                 jj=jj+1
 
-
-!               vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats_t(j,i)*varprd(jj))
-                vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
+                vprecond(nclen1+ii)=0.8_r_kind/(one+rstats_t(j,i)*varprd(jj))
 !   save updated variance for output
                 varA_t(j,i)=min(10000._r_kind,one/(one/varprd(jj)+rstats_t(j,i)))
              end do

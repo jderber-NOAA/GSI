@@ -46,7 +46,7 @@ subroutine precond(grady)
     call timer_ini('precond')
 
     do i=1,grady%lencv
-      grady%values(i)=grady%values(i)*vprecond(i)
+      grady%values(i)=grady%values(i)*vprecond%values(i)
     enddo
 
 !   Finalize timer

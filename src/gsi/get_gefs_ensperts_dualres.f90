@@ -211,6 +211,7 @@ subroutine get_gefs_ensperts_dualres
             do j=1,jm
                do i=1,im
                   q(i,j,k)=q(i,j,k)/qs(i,j,k)
+                  q(i,j,k)=min(one,max(q(i,j,k),zero))
                end do
             end do
          end do

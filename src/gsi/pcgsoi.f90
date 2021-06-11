@@ -126,7 +126,7 @@ subroutine pcgsoi()
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc,vqc
   use obsmod, only: destroyobs,oberror_tune,luse_obsdiag
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
-       nclen,penorig,gnormorig,xhatsave,yhatsave,&
+       nclen,nrclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution, &
        niter_no_qc,print_diag_pcg
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
@@ -148,6 +148,7 @@ subroutine pcgsoi()
   use bias_predictors, only: update_bias_preds
   use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
   use timermod, only: timer_ini,timer_fnl
+  use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult,sqrt_beta_e_mult
   use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
@@ -155,7 +156,7 @@ subroutine pcgsoi()
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
   use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
   use gsi_io, only: verbose
-  use berror, only: vprecond
+  use berror, only: vprecond,varprd
   use stpjomod, only: stpjo_setup
   
 
@@ -248,10 +249,58 @@ subroutine pcgsoi()
         cglworkhat(ii)=zero
      END DO
   end if
+
   do ii=1,nobs_bins
      sval(ii)=zero
   end do
   sbias=zero
+! llprt=(mype==0).and.(iter<=1)
+! xdiff%values=one
+! call sqrt_beta_s_mult(xdiff)
+! call sqrt_beta_s_mult(xdiff)
+! call sqrt_beta_e_mult(xdiff)
+! call sqrt_beta_e_mult(xdiff)
+! do i=1,nrclen
+!    xdiff%values(nclen-nrclen+i)=varprd(i)
+! end do
+! call c2s(xdiff,sval,sbias,llprt,.false.)
+
+!    Compare obs to solution and transpose back to grid
+! call intall(sval,sbias,rval,rbias)
+
+! xdiff%values=zero
+
+!    Adjoint of control to state
+! call c2s_ad(xdiff,rval,rbias,llprt)
+
+! ydiff%values=zero
+! do ii=1,nobs_bins
+!    sval(ii)=zero
+! end do
+! sbias=zero
+
+! call intall(sval,sbias,rval,rbias)
+
+! ydiff%values=zero
+!    Adjoint of control to state
+! call c2s_ad(ydiff,rval,rbias,llprt)
+
+! do i=1,nclen
+!    diry%values(i)=-(yhatsave%values(i)+ydiff%values(i))/(one+abs(xdiff%values(i)-ydiff%values(i)))
+! end do
+! call multb(lanlerr,diry,dirx)
+! do ii=1,nobs_bins
+!    rval(ii)=zero
+! end do
+! rbias=zero
+! call c2s(dirx,rval,rbias,llprt,.false.)
+! iter=-1
+! call stpcalc(stp,sval,sbias,dirx,rval,rbias, &
+!              diry,penalty,penaltynew,fjcost,fjcostnew,end_iter)
+! if(mype == 0) write(6,*) ' initial step -1 ',stp
+
+! xdiff%values=zero
+! ydiff%values=zero
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
@@ -343,7 +392,7 @@ subroutine pcgsoi()
         if (lanlerr) then
 ! xdiff used as a temporary array
            do i=1,nclen
-              xdiff%values(i)=vprecond(i)*gradx%values(i)
+              xdiff%values(i)=vprecond%values(i)*gradx%values(i)
            end do
            dprod(2) = qdot_prod_sub(xdiff,grady)
            call mpl_allreduce(2,qpvals=dprod)
@@ -351,14 +400,14 @@ subroutine pcgsoi()
            gnorm(3)=dprod(2)
         else
            do i=1,nclen
-              xdiff%values(i)=vprecond(i)*(gradx%values(i)-xdiff%values(i))
-              ydiff%values(i)=vprecond(i)*(grady%values(i)-ydiff%values(i))
+              xdiff%values(i)=vprecond%values(i)*(gradx%values(i)-xdiff%values(i))
+              ydiff%values(i)=vprecond%values(i)*(grady%values(i)-ydiff%values(i))
            end do
            dprod(2) = qdot_prod_sub(xdiff,grady)
            dprod(3) = qdot_prod_sub(ydiff,gradx)
 ! xdiff used as a temporary array
            do i=1,nclen
-              xdiff%values(i)=vprecond(i)*gradx%values(i)
+              xdiff%values(i)=vprecond%values(i)*gradx%values(i)
            end do
            dprod(4) = qdot_prod_sub(xdiff,grady)
            call mpl_allreduce(4,qpvals=dprod)
@@ -370,7 +419,7 @@ subroutine pcgsoi()
      else
 ! xdiff used as a temporary array
         do i=1,nclen
-           xdiff%values(i)=vprecond(i)*gradx%values(i)
+           xdiff%values(i)=vprecond%values(i)*gradx%values(i)
         end do
         dprod(2) = qdot_prod_sub(xdiff,grady)
         call mpl_allreduce(2,qpvals=dprod)
@@ -405,14 +454,14 @@ subroutine pcgsoi()
         end if
 !    Calculate new search direction
         do i=1,nclen
-           dirx%values(i)=-vprecond(i)*grady%values(i)+b*dirx%values(i)
-           diry%values(i)=-vprecond(i)*gradx%values(i)+b*diry%values(i)
+           dirx%values(i)=-vprecond%values(i)*grady%values(i)+b*dirx%values(i)
+           diry%values(i)=-vprecond%values(i)*gradx%values(i)+b*diry%values(i)
         end do
      else
 !    If previous solution available, transfer into local arrays.
 !    Fill with grady first so that if we read in part of diry there is something
         do i=1,nclen
-           diry%values(i)=-vprecond(i)*gradx%values(i)
+           diry%values(i)=-vprecond%values(i)*gradx%values(i)
         end do
         call read_guess_solution(diry,mype,read_success)
 !       Multiply by background error
@@ -425,7 +474,7 @@ subroutine pcgsoi()
         rval(ii)=zero
      end do
      rbias=zero
-     call c2s(dirx,rval,rbias,.false.,.true.)
+     call c2s(dirx,rval,rbias,.false.,.false.)
 
 !    Calculate stepsize
      call stpcalc(stp,sval,sbias,dirx,rval,rbias, &

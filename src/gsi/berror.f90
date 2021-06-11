@@ -108,7 +108,8 @@ module berror
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use control_vectors, only: nc3d,nvars,mvars
+  use control_vectors, only: nc3d,nvars,mvars,control_vector,allocate_cv,& 
+         deallocate_cv, assignment(=)
   implicit none
 
 ! set default to private
@@ -143,7 +144,8 @@ module berror
   real(r_kind) bw,vs
   real(r_kind),dimension(1:3):: hzscl,hswgt
 
-  real(r_kind),allocatable,dimension(:):: be,bl,bl2,varprd,vprecond
+  real(r_kind),allocatable,dimension(:):: be,bl,bl2,varprd
+  type(control_vector) :: vprecond
   real(r_kind),allocatable,dimension(:,:):: table,&
        slw,slw1,slw2
   real(r_kind),allocatable,dimension(:,:,:):: dssvs
@@ -291,7 +293,7 @@ contains
      dssvs = zero
   endif
   allocate(varprd(nrclen))
-  allocate(vprecond(nclen))
+  call allocate_cv(vprecond)
   allocate(inaxs(nf,nlon/8),inxrs(nlon/8,mr:nr) )
 
   allocate(slw(ny*nx,nnnn1o),&
@@ -339,7 +341,7 @@ contains
     if(allocated(alv))   deallocate(alv)
     if(allocated(dssv))  deallocate(dssv)
     if(allocated(dssvs)) deallocate(dssvs)
-    deallocate(vprecond)
+    call deallocate_cv(vprecond)
     deallocate(slw,slw1,slw2)
     deallocate(ii,jj,ii1,jj1,ii2,jj2)
 
@@ -469,7 +471,7 @@ contains
 !   set a coeff. factor for variances of control variables
     lfact=step_start
     do i=1,nclen-nrclen
-       vprecond(i)=5._r_kind*lfact
+       vprecond%values(i)=5._r_kind*lfact
     end do
 
     if(diag_precon)then
@@ -481,7 +483,7 @@ contains
            do j=1,npred
               ii=ii+1
 
-              vprecond(nclen1+ii)=0.8_r_kind/(one+rstats(j,i)*varprd(ii))
+              vprecond%values(nclen1+ii)=0.8_r_kind/(one+rstats(j,i)*varprd(ii))
               varA(j,i)=min(10000._r_kind,one/(one/varprd(ii)+rstats(j,i)))
            end do
         end do
@@ -497,7 +499,7 @@ contains
                 ii=ii+1
                 jj=jj+1
 
-                vprecond(nclen1+ii)=0.8_r_kind/(one+rstats_t(j,i)*varprd(jj))
+                vprecond%values(nclen1+ii)=0.8_r_kind/(one+rstats_t(j,i)*varprd(jj))
 !   save updated variance for output
                 varA_t(j,i)=min(10000._r_kind,one/(one/varprd(jj)+rstats_t(j,i)))
              end do
@@ -820,7 +822,7 @@ contains
     endif
     
     allocate(varprd(max(1,nrclen) ) )     
-    allocate(vprecond(nclen))
+    call allocate_cv(vprecond)
 
     allocate(slw(ny*nx,nnnn1o) )
     allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o) )
@@ -863,7 +865,7 @@ contains
     deallocate(ii,jj)
     deallocate(slw)
     deallocate(varprd)
-    deallocate(vprecond)
+    call deallocate_cv(vprecond)
 
     return
   end subroutine destroy_berror_vars_reg

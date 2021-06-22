@@ -608,7 +608,7 @@ contains
 ! !USES:
 
     use obsmod, only: iout_rad
-    use constants, only: zero,one,zero_quad
+    use constants, only: zero,one,zero_quad,r10
     use mpimod, only: mype
     use mpeu_util, only: perr,die
     implicit none
@@ -810,7 +810,8 @@ contains
 
     if (newpc4pred) then
        allocate(ostats(jpch_rad),rstats(npred,jpch_rad),varA(npred,jpch_rad))
-       varA = zero
+!    set default values - used when no previous observations
+       varA = r10
        ostats = zero
        rstats = zero_quad 
 
@@ -845,10 +846,11 @@ contains
                       cfound = .true.
                       nfound(j) = .true.
                       do i=1,npred
+                         if(varx(i) < 1.e-9_r_kind)varx(i)=r10
                          varA(i,j)=varx(i)
                       end do
                       ostats(j)=ostatsx
-                      if ((any(varx/=zero) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) & 
+                      if ((any(varx/=r10) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) & 
                          inew_rad(j)=.false.
                       cycle read3
                    end if

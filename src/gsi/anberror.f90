@@ -97,7 +97,7 @@ module anberror
   use berror, only: qvar3d
   use gridmod, only: lat2,lon2,nsig
   use fgrid2agrid_mod, only: fgrid2agrid_parm
-  use control_vectors, only: nvars
+  use control_vectors, only: nvars,control_vector,allocate_cv,deallocate_cv
   use general_sub2grid_mod, only: sub2grid_info
   implicit none
 
@@ -292,7 +292,7 @@ contains
     integer(i_kind),intent(in   ) :: mype
 
     allocate(varprd(max(1,nrclen)))
-    allocate(vprecond(nclen))
+    call allocate_cv(vprecond)
     allocate(an_amp(max_ngauss,nvars))
     an_amp=one/three
 
@@ -394,7 +394,7 @@ contains
     deallocate(an_amp)
     deallocate(afact0)
     deallocate(qvar3d)
-    deallocate(vprecond)
+    call deallocate_cv(vprecond)
 
     call destroy_fgrid2agrid(pf2aP1)
     call destroy_fgrid2agrid(pf2aP2)
@@ -441,7 +441,7 @@ contains
     logical regional
 
     allocate(varprd(max(1,nrclen)))
-    allocate(vprecond(nclen))
+    call allocate_cv(vprecond)
     allocate(an_amp(max_ngauss,nvars))
     an_amp=one/three
 
@@ -660,7 +660,7 @@ contains
     deallocate(an_amp)
     deallocate(afact0)
     deallocate(qvar3d)
-    deallocate(vprecond)
+    call deallocate_cv(vprecond)
     call destroy_fgrid2agrid(pf2aP1)
     call general_sub2grid_destroy_info(s2g_rff)
 !write(6,'(" FOR TEST ONLY--REMOVE THIS MESSAGE BEFORE FINAL COMMIT--SUCCESSFUL CALL TO general_sub2grid_destroy_info to remove s2g_rff in destroy_anberror_vars_reg")')

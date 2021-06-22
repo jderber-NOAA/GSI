@@ -867,7 +867,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
      end if
   end do stepsize
   kprt=3
-  if(kprt >= 2 .and. iter == 0)then
+  if(kprt >= 2 .and. iter <= 0)then
      call mpl_allreduce(ipen,nobs_bins,pj)
      if(mype == 0)call prnt_j(pj,n0,ipen,kprt)
   end if

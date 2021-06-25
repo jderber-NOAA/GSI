@@ -903,6 +903,7 @@ contains
 !$$$
     use kinds, only: r_single
     use gridmod, only: nlon,nlat,lat2,lon2,istart,jstart,region_lat
+    use m_berror_stats, only: berror_stats
     use constants, only: deg2rad,one
     implicit none
     
@@ -918,7 +919,7 @@ contains
 
 !   Read in dim of stats file
     lunin=22
-    open(lunin,file='berror_stats',form='unformatted')
+    open(lunin,file=berror_stats,form='unformatted')
     rewind lunin
     read(lunin)msig,mlat
     

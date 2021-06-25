@@ -13,7 +13,7 @@
       use constants, only: zero,one,max_varname_length
       use gridmod, only: nsig
       use chemmod, only : berror_chem,upper2lower,lower2upper
-      use m_berror_stats, only: berror_stats
+      use m_berror_stats, only: usenewgfsberror,berror_stats
 
       implicit none
 
@@ -24,9 +24,9 @@
 
         ! interfaces to file berror_stats.
       public :: berror_set_reg          ! set internal parameters
-      public :: berror_get_dims_reg	! get dimensions, jfunc::createj_func()
-      public :: berror_read_bal_reg	! get cross-cov.stats., balmod::prebal()
-      public :: berror_read_wgt_reg	! get auto-cov.stats., prewgt()
+      public :: berror_get_dims_reg     ! get dimensions, jfunc::createj_func()
+      public :: berror_read_bal_reg     ! get cross-cov.stats., balmod::prebal()
+      public :: berror_read_wgt_reg     ! get auto-cov.stats., prewgt()
 
 ! !REVISION HISTORY:
 !       25Feb10 - Zhu - adopt code format from m_berror_stats
@@ -112,7 +112,6 @@ end subroutine berror_get_dims_reg
 
   character(len=*),parameter :: myname_=myname//'::berror_set_reg'
   logical found
-
   found=.false.
   if(trim(opt)=='cwcoveqqcov') then
      cwcoveqqcov_=value
@@ -186,11 +185,26 @@ end subroutine berror_set_reg
     allocate ( clat_avn(mlat) )
     allocate ( sigma_avn(1:msig) )
     allocate ( rlsigo(1:msig) )
-    allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
-    allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
+    if(usenewgfsberror)then
+      allocate ( agv_avn(mlat,1:msig,1:msig) )
+      allocate ( bv_avn(mlat,1:msig),wgv_avn(mlat,1:msig) )
+    else
+      allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
+      allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
+    end if
 
 !   Read background error file to get balance variables
     read(inerr)clat_avn,(sigma_avn(k),k=1,msig)
+    if(mype == 0)then
+       do i=1,msig
+         write(6,*) ' sigma ',i,sigma_avn(i)
+       end do
+       do i=1,mlat
+         write(6,*) ' lat ',i,clat_avn(i)
+       end do
+    end if
+          
+
     read(inerr)agv_avn,bv_avn,wgv_avn
     close(inerr)
 
@@ -379,8 +393,13 @@ end subroutine berror_read_bal_reg
 
   allocate ( clat_avn(mlat) )
   allocate ( sigma_avn(1:msig) )
-  allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
-  allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
+  if(usenewgfsberror)then
+    allocate ( agv_avn(mlat,1:msig,1:msig) )
+    allocate ( bv_avn(mlat,1:msig),wgv_avn(mlat,1:msig) )
+  else
+    allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
+    allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
+  end if
 
   print_verbose=.false.
   if(verbose)print_verbose=.true.
@@ -397,6 +416,14 @@ end subroutine berror_read_bal_reg
   read(inerr)clat_avn,(sigma_avn(k),k=1,msig)
   read(inerr)agv_avn,bv_avn,wgv_avn
 
+  if(mype == 0)then
+  do i=1,mlat
+    write(6,*) i,clat_avn(i)
+  end do
+  do i=1,msig
+    write(6,*) i,sigma_avn(i)
+  end do
+  end if
 ! compute vertical(pressure) interpolation index and weight
   do k=1,nsig
      rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
@@ -435,8 +462,13 @@ end subroutine berror_read_bal_reg
 
      if (istat /= 0) exit
      allocate ( corz_avn(1:mlat,1:isig) )
-     allocate ( hwll_avn(0:mlat+1,1:isig) )
-     allocate ( vztdq_avn(1:isig,0:mlat+1) )
+     if(usenewgfsberror)then
+       allocate ( hwll_avn(mlat,1:isig) )
+       allocate ( vztdq_avn(1:isig,mlat) )
+     else
+       allocate ( hwll_avn(0:mlat+1,1:isig) )
+       allocate ( vztdq_avn(1:isig,0:mlat+1) )
+     end if
 
      if (var/='q' .or. (var=='cw' .and. cwoption==2)) then
         read(inerr) corz_avn
@@ -479,10 +511,14 @@ end subroutine berror_read_bal_reg
                  end do
               end if
               do k=1,msig
-                 do i=0,mlat+1
+                 do i=1,mlat
                     hwll_tmp(i,k,n)=hwll_avn(i,k)
                     vz_tmp(k,i,n)=vztdq_avn(k,i)
                  end do
+                 hwll_tmp(0,k,n)=hwll_avn(1,k)
+                 hwll_tmp(mlat+1,k,n)=hwll_avn(mlat,k)
+                 vz_tmp(k,0,n)=vztdq_avn(k,1)
+                 vz_tmp(k,mlat+1,n)=vztdq_avn(k,mlat)
               end do
               exit
            end if
@@ -496,8 +532,8 @@ end subroutine berror_read_bal_reg
                  corp(i,n)=corz_avn(i,1)
                  hwllp(i,n)=hwll_avn(i,1)
              end do
-             hwllp(0,n)=hwll_avn(0,1)
-             hwllp(mlat+1,n)=hwll_avn(mlat+1,1)
+             hwllp(0,n)=hwll_avn(1,1)
+             hwllp(mlat+1,n)=hwll_avn(mlat,1)
              exit
           end if
        end do
@@ -506,7 +542,7 @@ end subroutine berror_read_bal_reg
      deallocate ( corz_avn )
      deallocate ( hwll_avn )
      deallocate ( vztdq_avn )
-     if (var=='q' .or. var=='cw') deallocate ( corqq_avn )
+     if(allocated(corqq_avn)) deallocate ( corqq_avn )
   enddo read
   close(inerr)
 

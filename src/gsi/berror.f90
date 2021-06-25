@@ -189,6 +189,7 @@ contains
 !$$$
     use constants, only:  zero,one,three
     use balmod, only: fstat
+    use m_berror_stats, only: usenewgfsberror
     implicit none
     integer(i_kind) i
 
@@ -210,6 +211,7 @@ contains
     fpsproj = .true.
     fut2ps = .false.
     cwcoveqqcov=.true.
+    usenewgfsberror=.false.
 
     do i=1,3
        hzscl(i)=one

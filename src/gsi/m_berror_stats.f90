@@ -43,9 +43,13 @@ module m_berror_stats
 
    private    ! except
 
-   ! reconfigurable parameters, via NAMELIST/setup/
-   public :: berror_stats    ! reconfigurable filename
+!   def usenewgfsberror - use modified gfs berror stats for global and regional.
+!                        for global skips extra record
+!                        for regional properly defines array sizes, etc.
+!   def berror_stats  - reconfigurable filename via NAMELIST/setup/
 
+   public :: usenewgfsberror
+   public :: berror_stats
    ! interfaces to file berror_stats.
    public :: berror_get_dims ! get dimensions, jfunc::createj_func()
    public :: berror_read_bal ! get cross-cov.stats., balmod::prebal()
@@ -77,8 +81,11 @@ module m_berror_stats
    integer(i_kind),parameter :: default_unit_ = 22
    integer(i_kind),parameter :: default_rc_   = 2
 
-   character(len=256),save :: berror_stats = "berror_stats"      ! filename
+!  character(len=256):: berror_out = "berror_out"      ! filename
    logical,save :: cwcoveqqcov_
+   logical usenewgfsberror
+
+   character(len=256),save :: berror_stats = "berror_stats"      ! filename
 
 contains
 
@@ -215,6 +222,8 @@ subroutine read_bal(agvin,bvin,wgvin,pputin,fut2ps,mype,lunit)
    read(inerr,iostat=ier) nsigstat,nlatstat
    call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (nsigstat,nlatstat)')
 
+!  dummy read to skip lats,sigma
+   if(usenewgfsberror)read(inerr)
    if ( mype==0 ) then
       if ( nsig/=nsigstat .or. nlat/=nlatstat ) then
          write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
@@ -259,9 +268,10 @@ end subroutine read_bal
 
 subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwoption,mype,lunit)
 
+   use constants,only : rad2deg
    use kinds,only : r_single,r_kind
-   use gridmod,only : nlat,nlon,nsig
-      use radiance_mod, only: n_clouds_fwd,cloud_names_fwd
+   use gridmod,only : nlat,nlon,nsig,rlats,ak5,bk5
+   use radiance_mod, only: n_clouds_fwd,cloud_names_fwd
 
    implicit none
 
@@ -309,13 +319,14 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
 
    integer(i_kind) :: i,n,k,iq,icw,ivar,ic
    integer(i_kind) :: inerr,istat,ier
-   integer(i_kind) :: nsigstat,nlatstat
+   integer(i_kind) :: nsigstat,nlatstat,mlon_
    integer(i_kind) :: isig
    real(r_kind) :: corq2x
    character(len=5) :: var
    logical,allocatable,dimension(:) :: found3d
    logical,allocatable,dimension(:) :: found2d
 
+   real(r_single),allocatable,dimension(:)  :: clat,sigma
    real(r_single),allocatable,dimension(:,:):: hwllin
    real(r_single),allocatable,dimension(:,:):: corzin
    real(r_single),allocatable,dimension(:,:):: corq2
@@ -331,8 +342,26 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
    ! with that specified via the user namelist
 
    rewind inerr
-   read(inerr,iostat=ier)nsigstat,nlatstat
+   read(inerr,iostat=ier)nsigstat,nlatstat,mlon_
+!  if(mype == 0)then
+!    open(177,file=berror_out,form='unformatted',status='new',iostat=ier)
+!    rewind 177
+!    write(177,iostat=ier)nsigstat,nlatstat,mlon_
+!    allocate(clat(nlatstat),sigma(nsigstat+1))
+!    do k=1,nsigstat+1
+!      sigma(k)=ak5(k)/1013._r_kind+bk5(k)
+!      write(6,*) 'sigma ',k,sigma(k),nsigstat
+!    end do
+!    do i=1,nlatstat
+!      clat(i)=rlats(i)*rad2deg
+!      write(6,*) 'lat ',i,clat(i),nlatstat
+!    end do
+!    write(177,iostat=ier)clat,sigma
+!    deallocate(clat,sigma)
+!  end if
    call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (nsigstat,nlatstat)')
+!  dummy read to skip lats,sigma
+   if(usenewgfsberror)read(inerr)
 
    if ( mype==0 ) then
       if ( nsigstat/=nsig .or. nlatstat/=nlat ) then
@@ -348,6 +377,7 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
          mype,nsigstat,nlatstat
    endif
    read(inerr,iostat=ier) agvin,bvin,wgvin
+!  if(mype == 0)write(177,iostat=ier) agvin,bvin,wgvin
    call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (agvin,bvin,wgvin)')
 
    ! Read amplitudes
@@ -356,6 +386,8 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
    found2d=.false.
    readloop: do
       read(inerr,iostat=istat) var, isig
+      if ( istat/=0 ) exit
+!     if(mype == 0)write(177,iostat=istat) var, isig
       if ( istat/=0 ) exit
 
       allocate(corzin(nlat,isig))
@@ -366,21 +398,27 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
       if ( var/='sst' ) then
          if ( var=='q' .or. var=='Q' .or. (var=='cw' .and. cwoption==2) ) then
             read(inerr,iostat=ier) corzin,corq2
+!           if(mype == 0)write(177,iostat=ier) corzin,corq2
             call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corzin,corq2)')
          else
             read(inerr,iostat=ier) corzin
+!           if(mype == 0)write(177,iostat=ier) corzin
             call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corzin)')
          endif
          read(inerr,iostat=ier) hwllin
+!        if(mype == 0)write(177,iostat=ier) hwllin
          call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (hwllin)')
          if ( isig>1 ) then
             read(inerr,iostat=ier) vscalesin
+!           if(mype == 0)write(177,iostat=ier) vscalesin
             call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (vscalein)')
          endif
       else
          read(inerr,iostat=ier) corsst
+!        if(mype == 0)write(177,iostat=ier) corsst
          call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corsst)')
          read(inerr,iostat=ier) hsst
+!        if(mype == 0)write(177,iostat=ier) hsst
          call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (hsst)')
       endif
 
@@ -444,6 +482,7 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
       if ( var=='q' .or. var=='cw' ) deallocate(corq2)
    enddo readloop 
    close(inerr)
+!  if(mype == 0)close(177)
 
    ! corz, hwll & vz for undefined 3d variables
    do n=1,size(cvars3d)

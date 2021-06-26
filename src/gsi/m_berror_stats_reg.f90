@@ -539,8 +539,13 @@ end subroutine berror_read_bal_reg
                  corp(i,n)=corz_avn(i,1)
                  hwllp(i,n)=hwll_avn(i,1)
              end do
-             hwllp(0,n)=hwll_avn(1,1)
-             hwllp(mlat+1,n)=hwll_avn(mlat,1)
+             if(usenewgfsberror)then
+                hwllp(0,n)=hwll_avn(1,1)
+                hwllp(mlat+1,n)=hwll_avn(mlat,1)
+             else
+                hwllp(0,n)=hwll_avn(0,1)
+                hwllp(mlat+1,n)=hwll_avn(mlat+1,1)
+             end if
              exit
           end if
        end do

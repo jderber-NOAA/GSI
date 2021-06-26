@@ -511,14 +511,21 @@ end subroutine berror_read_bal_reg
                  end do
               end if
               do k=1,msig
-                 do i=1,mlat
-                    hwll_tmp(i,k,n)=hwll_avn(i,k)
-                    vz_tmp(k,i,n)=vztdq_avn(k,i)
-                 end do
-                 hwll_tmp(0,k,n)=hwll_avn(1,k)
-                 hwll_tmp(mlat+1,k,n)=hwll_avn(mlat,k)
-                 vz_tmp(k,0,n)=vztdq_avn(k,1)
-                 vz_tmp(k,mlat+1,n)=vztdq_avn(k,mlat)
+                 if(usenewgfsberror)then
+                    do i=1,mlat
+                       hwll_tmp(i,k,n)=hwll_avn(i,k)
+                       vz_tmp(k,i,n)=vztdq_avn(k,i)
+                    end do
+                    hwll_tmp(0,k,n)=hwll_avn(1,k)
+                    hwll_tmp(mlat+1,k,n)=hwll_avn(mlat,k)
+                    vz_tmp(k,0,n)=vztdq_avn(k,1)
+                    vz_tmp(k,mlat+1,n)=vztdq_avn(k,mlat)
+                 else
+                    do i=0,mlat+1
+                       hwll_tmp(i,k,n)=hwll_avn(i,k)
+                       vz_tmp(k,i,n)=vztdq_avn(k,i)
+                    end do
+                 end if
               end do
               exit
            end if

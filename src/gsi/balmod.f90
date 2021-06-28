@@ -922,7 +922,6 @@ contains
     open(lunin,file=berror_stats,form='unformatted')
     rewind lunin
     read(lunin)msig,mlat
-    
 
 !   Allocate and read in lat array in stats file
     allocate( clat_avn(mlat), clat_avn4(mlat) )

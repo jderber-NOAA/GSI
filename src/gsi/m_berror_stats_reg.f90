@@ -195,14 +195,6 @@ end subroutine berror_set_reg
 
 !   Read background error file to get balance variables
     read(inerr)clat_avn,(sigma_avn(k),k=1,msig)
-    if(mype == 0)then
-       do i=1,msig
-         write(6,*) ' sigma ',i,sigma_avn(i)
-       end do
-       do i=1,mlat
-         write(6,*) ' lat ',i,clat_avn(i)
-       end do
-    end if
           
 
     read(inerr)agv_avn,bv_avn,wgv_avn
@@ -357,8 +349,7 @@ end subroutine berror_read_bal_reg
 
 !  workspace variables not returned
   real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
-  real(r_single),dimension(:,:),allocatable::  bv_avn,wgv_avn,corqq_avn
-  real(r_single),dimension(:,:,:),allocatable:: agv_avn
+  real(r_single),dimension(:,:),allocatable::  corqq_avn
   real(r_single),dimension(:,:),allocatable:: corz_avn,hwll_avn,vztdq_avn
 
   real(r_single),dimension(1:mlat,msig,nrf):: corz_tmp
@@ -378,8 +369,9 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf3_dbz
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
-  integer(i_kind) :: loc,m1,m,i,n,j,k,n0,ivar,ic
+  integer(i_kind) :: loc,m1,m,i,n,j,k,ivar,ic,n0
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
+  integer(i_kind),dimension(mvars) :: motlevs
   real(r_kind) :: factoz
   real(r_kind) :: raux
 
@@ -390,16 +382,6 @@ end subroutine berror_read_bal_reg
   real(r_kind) ,dimension(mlat,1,2) :: cov_dum
 !  character(256) :: filename 
 !  filename = 'howv_var_berr.bin'
-
-  allocate ( clat_avn(mlat) )
-  allocate ( sigma_avn(1:msig) )
-  if(usenewgfsberror)then
-    allocate ( agv_avn(mlat,1:msig,1:msig) )
-    allocate ( bv_avn(mlat,1:msig),wgv_avn(mlat,1:msig) )
-  else
-    allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
-    allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
-  end if
 
   print_verbose=.false.
   if(verbose)print_verbose=.true.
@@ -413,17 +395,9 @@ end subroutine berror_read_bal_reg
   read(inerr) nsigstat,nlatstat
 
 ! Read background error file to get balance variables
-  read(inerr)clat_avn,(sigma_avn(k),k=1,msig)
-  read(inerr)agv_avn,bv_avn,wgv_avn
+  read(inerr)
+  read(inerr)
 
-  if(mype == 0)then
-  do i=1,mlat
-    write(6,*) i,clat_avn(i)
-  end do
-  do i=1,msig
-    write(6,*) i,sigma_avn(i)
-  end do
-  end if
 ! compute vertical(pressure) interpolation index and weight
   do k=1,nsig
      rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
@@ -454,13 +428,36 @@ end subroutine berror_read_bal_reg
      if (berror_chem) then
         read(inerr,iostat=istat) varshort,isig
         var=upper2lower(varshort)
-        if (var == 'pm25') var = 'pm2_5'
+        if (trim(var) == 'pm25') var = 'pm2_5'
      else 
         read(inerr,iostat=istat) varshort, isig
         var=varshort
      endif
-
      if (istat /= 0) exit
+!    if(trim(var) == 'cw' .or. trim(var) == 'sst' .or. trim(var) == 'oz')then
+!       read(inerr)
+!       read(inerr)
+!       if (isig>1)read(inerr)
+!       cycle read
+!    endif
+!    load the variances
+     do n=1,nrf
+        if (trim(var)==cvars(n)) then
+           nrf_err(n)=.true.
+           loc=n
+           exit
+        else
+           loc=-999
+        end if
+     end do
+     if(loc == -999)then
+        if(mype == 0)write(6,*) 'variable in input file, but not used in analysis ',var,isig
+        read(inerr)
+        read(inerr)
+        if(isig > 1)read(inerr)
+        cycle read
+     end if
+
      allocate ( corz_avn(1:mlat,1:isig) )
      if(usenewgfsberror)then
        allocate ( hwll_avn(mlat,1:isig) )
@@ -470,7 +467,7 @@ end subroutine berror_read_bal_reg
        allocate ( vztdq_avn(1:isig,0:mlat+1) )
      end if
 
-     if (var/='q' .or. (var=='cw' .and. cwoption==2)) then
+     if (trim(var)/='q' .or. (trim(var)=='cw' .and. cwoption==2)) then
         read(inerr) corz_avn
      else
         allocate ( corqq_avn(1:mlat,1:isig) )
@@ -482,21 +479,11 @@ end subroutine berror_read_bal_reg
         read(inerr) vztdq_avn
      end if
 
-!    load the variances
-     do n=1,nrf
-        if (var==cvars(n)) then
-           nrf_err(n)=.true.
-           loc=n
-           exit
-        else
-           loc=-999
-        end if
-     end do
 
      if (isig==msig) then
         do n=1,nc3d
            if (nrf3_loc(n)==loc) then
-              if ((var=='q' .and. qoption==2) .or. (var=='cw' .and. cwoption==2)) then
+              if ((trim(var)=='q' .and. qoption==2) .or. (trim(var)=='cw' .and. cwoption==2)) then
 !                choose which q stat to use
                  do k=1,msig
                     do i=1,mlat
@@ -550,16 +537,38 @@ end subroutine berror_read_bal_reg
           end if
        end do
      end if
+     do n=1,mvars
+        if(nmotl_loc(n) == loc)then
+           if (isig==msig) then
+              do k=1,msig
+                 do i=1,mlat
+                    corp(i,nc2d+n)=corz_avn(i,1)
+                 end do
+              end do
+              do k=1,msig
+                 if(usenewgfsberror)then
+                    do i=1,mlat
+                       hwllp(i,nc2d+n)=hwll_avn(i,1)
+                    end do
+                    hwllp(0,nc2d+n)=hwll_avn(1,1)
+                    hwllp(mlat+1,nc2d+n)=hwll_avn(mlat,1)
+                 else
+                    do i=0,mlat+1
+                       hwllp(i,nc2d+n)=hwll_avn(i,1)
+                    end do
+                 end if
+              end do
+              exit
+           end if
+        end if
+     enddo
 
      deallocate ( corz_avn )
      deallocate ( hwll_avn )
-     deallocate ( vztdq_avn )
+     if(allocated(vztdq_avn)) deallocate ( vztdq_avn )
      if(allocated(corqq_avn)) deallocate ( corqq_avn )
   enddo read
   close(inerr)
-
-  deallocate(clat_avn,sigma_avn)
-  deallocate(agv_avn,bv_avn,wgv_avn)
 
 ! 3d variable
   do n=1,nc3d
@@ -713,15 +722,12 @@ end subroutine berror_read_bal_reg
 ! 2d variable
   do n=1,nc2d
      loc=nrf2_loc(n)
-     if (nrf_err(loc)) cycle
      if (n==nrf2_sst) then
         do i=1,mlat
            corp(i,n)=zero_3
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_sf)
-           hwllp(i,nc2d+1)=hwll(i,1,nrf3_sf) !not very nice, since it assumes that stl and sti
-           hwllp(i,nc2d+2)=hwll(i,1,nrf3_sf) !are always the first motley variables in convinfo
         end do
      end if
      if (n==nrf2_gust) then
@@ -855,100 +861,126 @@ end subroutine berror_read_bal_reg
 
 
 ! motley variable
-  n0=nc2d 
+  n0=nc2d
   do n=1,mvars
-     if (cvarsmd(n)=='stl') cycle
-     if (cvarsmd(n)=='sti') cycle
+     if (cvarsmd(n)=='sti' .or. cvarsmd(n)=='stl') then
+        loc=nmotl_loc(n)
+        do i=1,mlat
+           corp(i,n0+n)=corz(i,1,nrf3_sf)
+        end do
+        do i=0,mlat+1
+           hwllp(i,n0+n)=hwll(i,1,nrf3_sf) 
+        end do
+        cycle
+     end if
+
 
      if (cvarsmd(n)=='pswter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_ps)
+           corp(i,n+n0)=corp(i,nrf2_ps)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_ps)
+           hwllp(i,n+n0)=hwllp(i,nrf2_ps)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='twter') then
         do i=1,mlat
-           corp(i,n0+n)=corz(i,1,nrf3_t)
+           corp(i,n+n0)=corz(i,1,nrf3_t)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwll(i,1,nrf3_t)
+           hwllp(i,n+n0)=hwll(i,1,nrf3_t)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='qwter') then
         do i=1,mlat
-           corp(i,n0+n)=corz(i,1,nrf3_q)
+           corp(i,n+n0)=corz(i,1,nrf3_q)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwll(i,1,nrf3_q)
+           hwllp(i,n+n0)=hwll(i,1,nrf3_q)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='gustwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_gust)
+           corp(i,n+n0)=corp(i,nrf2_gust)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_gust)
+           hwllp(i,n+n0)=hwllp(i,nrf2_gust)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='wspd10mwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_wspd10m)
+           corp(i,n+n0)=corp(i,nrf2_wspd10m)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_wspd10m)
+           hwllp(i,n+n0)=hwllp(i,nrf2_wspd10m)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='td2mwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_td2m)
+           corp(i,n+n0)=corp(i,nrf2_td2m)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_td2m)
+           hwllp(i,n+n0)=hwllp(i,nrf2_td2m)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='mxtmwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_mxtm)
+           corp(i,n+n0)=corp(i,nrf2_mxtm)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_mxtm)
+           hwllp(i,n+n0)=hwllp(i,nrf2_mxtm)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='mitmwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_mitm)
+           corp(i,n+n0)=corp(i,nrf2_mitm)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_mitm)
+           hwllp(i,n+n0)=hwllp(i,nrf2_mitm)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='uwnd10mwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_uwnd10m)
+           corp(i,n+n0)=corp(i,nrf2_uwnd10m)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_uwnd10m)
+           hwllp(i,n+n0)=hwllp(i,nrf2_uwnd10m)
         end do
+        cycle
      endif
 
      if (cvarsmd(n)=='vwnd10mwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_vwnd10m)
+           corp(i,n+n0)=corp(i,nrf2_vwnd10m)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_vwnd10m)
+           hwllp(i,n+n0)=hwllp(i,nrf2_vwnd10m)
         end do
+        cycle
      endif
+!  if not found use default
+     do i=1,mlat
+        corp(i,n+n0)=corz_default
+     end do
+     do i=0,mlat+1
+        hwllp(i,n+n0)=hwll_default
+     end do
   enddo
 
   deallocate(nrf3_loc,nrf2_loc,nmotl_loc)

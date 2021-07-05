@@ -687,50 +687,46 @@ end subroutine berror_read_bal_reg
 ! 2d variable
   do n=1,nc2d
      loc=nrf2_loc(n)
+     if(loc <= 0)cycle
 !  If we want to use the sst in global file uncomment the following if statement
-!    if(.not. usenewgfsberror)then
-       if (n==nrf2_sst) then
+     if (n==nrf2_sst) then
+!       if(.not. usenewgfsberror)then
           do i=1,mlat
              corp(i,n)=zero_3
           end do
           do i=0,mlat+1
              hwllp(i,n)=hwll(i,1,nrf3_sf)
           end do
-       end if
-!    end if
-     if (n==nrf2_gust) then
+!       end if
+     else if (n==nrf2_gust) then
         do i=1,mlat
            corp(i,n)=three
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q)
         end do
-     end if
-     if (n==nrf2_vis) then
+     else if (n==nrf2_vis) then
         do i=1,mlat
            corp(i,n)=3.0_r_kind
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_pblh) then
+     else if (n==nrf2_pblh) then
         do i=1,mlat
            corp(i,n)=500.0_r_kind
         end do
         do i=0,mlat+1
            hwllp(i,n)=three*hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_wspd10m) then
+     else if (n==nrf2_wspd10m) then
         do i=1,mlat
            corp(i,n)=three
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q)
         end do
-     end if
-     if (n==nrf2_td2m) then
+     else if (n==nrf2_td2m) then
         raux=maxval(corz(1:mlat,1,nrf3_q))
         do i=1,mlat
            corp(i,n)=(corz(i,1,nrf3_q)/raux)*three !tentatively
@@ -738,32 +734,28 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q) !tentatively
         end do
-     end if
-     if (n==nrf2_mxtm) then
+     else if (n==nrf2_mxtm) then
         do i=1,mlat
            corp(i,n)=corz(i,1,nrf3_t)
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_mitm) then
+     else if (n==nrf2_mitm) then
         do i=1,mlat
            corp(i,n)=corz(i,1,nrf3_t)
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_pmsl) then
+     else if (n==nrf2_pmsl) then
         do i=1,mlat
            corp(i,n)=corp(i,nrf2_ps)
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwllp(i,nrf2_ps)
         end do
-     end if
-     if (n==nrf2_howv) then
+     else if (n==nrf2_howv) then
          call read_howv_stats(mlat,1,2,cov_dum)
          do i=1,mlat
             corp(i,n)=cov_dum(i,1,1)     !#ww3
@@ -781,16 +773,14 @@ end subroutine berror_read_bal_reg
 !        do i=0,mlat+1
 !           hwllp(i,n)=hwll(i,1,nrf3_sf) !tentatively !#ww3  hwllp(i,n)=150000_r_kind  !
 !        end do
-     end if
-     if (n==nrf2_tcamt) then
+     else if (n==nrf2_tcamt) then
         do i=1,mlat
            corp(i,n)=50.0_r_kind
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_lcbas) then
+     else if (n==nrf2_lcbas) then
         do i=1,mlat
            corp(i,n)=40000.0_r_kind
         end do
@@ -798,8 +788,7 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
         if(print_verbose)print*, 'm_berror_reg: maxhwllp_lcbas=',maxval(hwllp(:,n))
-     end if
-     if (n==nrf2_cldch) then
+     else if (n==nrf2_cldch) then
         do i=1,mlat
            corp(i,n)=3.0_r_kind
         end do
@@ -807,16 +796,14 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
         if(print_verbose)print*, 'm_berror_reg: maxhwllp_cldch=',maxval(hwllp(:,n))
-     end if
-     if (n==nrf2_uwnd10m) then
+     else if (n==nrf2_uwnd10m) then
         do i=1,mlat
            corp(i,n)=three
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q)
         end do
-     end if
-     if (n==nrf2_vwnd10m) then
+     else if (n==nrf2_vwnd10m) then
         do i=1,mlat
            corp(i,n)=three
         end do
@@ -830,7 +817,8 @@ end subroutine berror_read_bal_reg
 
 ! motley variable
   do n=1,mvars
-     loc=nmotl_loc(n)+nc2d
+     loc=n+nc2d
+     if(loc <= 0)cycle
      if (cvarsmd(n)=='sti' .or. cvarsmd(n)=='stl') then
         do i=1,mlat
            corp(i,loc)=corz(i,1,nrf3_sf)
@@ -838,116 +826,95 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,loc)=hwll(i,1,nrf3_sf) 
         end do
-        cycle
-     end if
 
-
-     if (cvarsmd(n)=='pswter') then
+     else if (cvarsmd(n)=='pswter') then
         do i=1,mlat
            corp(i,loc)=corp(i,nrf2_ps)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwllp(i,nrf2_ps)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='twter') then
+     else if (cvarsmd(n)=='twter') then
         do i=1,mlat
            corp(i,loc)=corz(i,1,nrf3_t)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwll(i,1,nrf3_t)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='qwter') then
+     else if (cvarsmd(n)=='qwter') then
         do i=1,mlat
            corp(i,loc)=corz(i,1,nrf3_q)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwll(i,1,nrf3_q)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='gustwter') then
+     else if (cvarsmd(n)=='gustwter') then
         do i=1,mlat
            corp(i,loc)=corp(i,nrf2_gust)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwllp(i,nrf2_gust)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='wspd10mwter') then
+     else if (cvarsmd(n)=='wspd10mwter') then
         do i=1,mlat
            corp(i,loc)=corp(i,nrf2_wspd10m)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwllp(i,nrf2_wspd10m)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='td2mwter') then
+     else if (cvarsmd(n)=='td2mwter') then
         do i=1,mlat
            corp(i,loc)=corp(i,nrf2_td2m)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwllp(i,nrf2_td2m)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='mxtmwter') then
+     else if (cvarsmd(n)=='mxtmwter') then
         do i=1,mlat
            corp(i,loc)=corp(i,nrf2_mxtm)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwllp(i,nrf2_mxtm)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='mitmwter') then
+     else if (cvarsmd(n)=='mitmwter') then
         do i=1,mlat
            corp(i,loc)=corp(i,nrf2_mitm)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwllp(i,nrf2_mitm)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='uwnd10mwter') then
+     else if (cvarsmd(n)=='uwnd10mwter') then
         do i=1,mlat
            corp(i,loc)=corp(i,nrf2_uwnd10m)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwllp(i,nrf2_uwnd10m)
         end do
-        cycle
-     endif
 
-     if (cvarsmd(n)=='vwnd10mwter') then
+     else if (cvarsmd(n)=='vwnd10mwter') then
         do i=1,mlat
            corp(i,loc)=corp(i,nrf2_vwnd10m)
         end do
         do i=0,mlat+1
            hwllp(i,loc)=hwllp(i,nrf2_vwnd10m)
         end do
-        cycle
-     endif
 !  if not found use default
-     do i=1,mlat
-        corp(i,loc)=corz_default
-     end do
-     do i=0,mlat+1
-        hwllp(i,loc)=hwll_default
-     end do
+     else 
+        do i=1,mlat
+           corp(i,loc)=corz_default
+        end do
+        do i=0,mlat+1
+           hwllp(i,loc)=hwll_default
+        end do
+     end if
   enddo
 
   deallocate(nrf3_loc,nrf2_loc,nmotl_loc)

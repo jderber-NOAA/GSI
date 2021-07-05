@@ -748,7 +748,7 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     else if (n==nrf2_pmsl) then
+     else if (n==nrf2_pmsl .or. n==nrf2_ps) then
         do i=1,mlat
            corp(i,n)=corp(i,nrf2_ps)
         end do

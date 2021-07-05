@@ -505,6 +505,7 @@ end subroutine berror_read_bal_reg
                     end do
                  end if
               end do
+              exit
            end if
         end do
      end if
@@ -523,6 +524,7 @@ end subroutine berror_read_bal_reg
                 hwllp(0,n)=hwll_avn(0,1)
                 hwllp(mlat+1,n)=hwll_avn(mlat+1,1)
              end if
+             exit
           end if
        end do
      end if
@@ -816,8 +818,9 @@ end subroutine berror_read_bal_reg
 
 ! motley variable
   do n=1,mvars
+     loc=nmotl_loc(n)
+     if(loc <=0)cycle
      loc=n+nc2d
-     if(loc <= 0)cycle
      if (cvarsmd(n)=='sti' .or. cvarsmd(n)=='stl') then
         do i=1,mlat
            corp(i,loc)=corz(i,1,nrf3_sf)

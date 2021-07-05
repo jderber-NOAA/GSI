@@ -368,7 +368,7 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf3_dbz
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
-  integer(i_kind) :: loc,m1,m,i,n,j,k,ivar,ic,n0
+  integer(i_kind) :: loc,m1,m,i,n,j,k,ivar,ic
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
   real(r_kind) :: factoz
   real(r_kind) :: raux
@@ -535,32 +535,6 @@ end subroutine berror_read_bal_reg
           end if
        end do
      end if
-     do n=1,mvars
-        if(nmotl_loc(n) == loc)then
-           if (isig==msig) then
-              do k=1,msig
-                 do i=1,mlat
-                    corp(i,nc2d+n)=corz_avn(i,1)
-                 end do
-              end do
-              do k=1,msig
-                 if(usenewgfsberror)then
-                    do i=1,mlat
-                       hwllp(i,nc2d+n)=hwll_avn(i,1)
-                    end do
-                    hwllp(0,nc2d+n)=hwll_avn(1,1)
-                    hwllp(mlat+1,nc2d+n)=hwll_avn(mlat,1)
-                 else
-                    do i=0,mlat+1
-                       hwllp(i,nc2d+n)=hwll_avn(i,1)
-                    end do
-                 end if
-              end do
-              exit
-           end if
-        end if
-     enddo
-
      deallocate ( corz_avn )
      deallocate ( hwll_avn )
      if(allocated(vztdq_avn)) deallocate ( vztdq_avn )
@@ -859,15 +833,14 @@ end subroutine berror_read_bal_reg
 
 
 ! motley variable
-  n0=nc2d
   do n=1,mvars
+     loc=nmotl_loc(n)+nc2d
      if (cvarsmd(n)=='sti' .or. cvarsmd(n)=='stl') then
-        loc=nmotl_loc(n)
         do i=1,mlat
-           corp(i,n0+n)=corz(i,1,nrf3_sf)
+           corp(i,loc)=corz(i,1,nrf3_sf)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwll(i,1,nrf3_sf) 
+           hwllp(i,loc)=hwll(i,1,nrf3_sf) 
         end do
         cycle
      end if
@@ -875,109 +848,109 @@ end subroutine berror_read_bal_reg
 
      if (cvarsmd(n)=='pswter') then
         do i=1,mlat
-           corp(i,n+n0)=corp(i,nrf2_ps)
+           corp(i,loc)=corp(i,nrf2_ps)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwllp(i,nrf2_ps)
+           hwllp(i,loc)=hwllp(i,nrf2_ps)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='twter') then
         do i=1,mlat
-           corp(i,n+n0)=corz(i,1,nrf3_t)
+           corp(i,loc)=corz(i,1,nrf3_t)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwll(i,1,nrf3_t)
+           hwllp(i,loc)=hwll(i,1,nrf3_t)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='qwter') then
         do i=1,mlat
-           corp(i,n+n0)=corz(i,1,nrf3_q)
+           corp(i,loc)=corz(i,1,nrf3_q)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwll(i,1,nrf3_q)
+           hwllp(i,loc)=hwll(i,1,nrf3_q)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='gustwter') then
         do i=1,mlat
-           corp(i,n+n0)=corp(i,nrf2_gust)
+           corp(i,loc)=corp(i,nrf2_gust)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwllp(i,nrf2_gust)
+           hwllp(i,loc)=hwllp(i,nrf2_gust)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='wspd10mwter') then
         do i=1,mlat
-           corp(i,n+n0)=corp(i,nrf2_wspd10m)
+           corp(i,loc)=corp(i,nrf2_wspd10m)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwllp(i,nrf2_wspd10m)
+           hwllp(i,loc)=hwllp(i,nrf2_wspd10m)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='td2mwter') then
         do i=1,mlat
-           corp(i,n+n0)=corp(i,nrf2_td2m)
+           corp(i,loc)=corp(i,nrf2_td2m)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwllp(i,nrf2_td2m)
+           hwllp(i,loc)=hwllp(i,nrf2_td2m)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='mxtmwter') then
         do i=1,mlat
-           corp(i,n+n0)=corp(i,nrf2_mxtm)
+           corp(i,loc)=corp(i,nrf2_mxtm)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwllp(i,nrf2_mxtm)
+           hwllp(i,loc)=hwllp(i,nrf2_mxtm)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='mitmwter') then
         do i=1,mlat
-           corp(i,n+n0)=corp(i,nrf2_mitm)
+           corp(i,loc)=corp(i,nrf2_mitm)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwllp(i,nrf2_mitm)
+           hwllp(i,loc)=hwllp(i,nrf2_mitm)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='uwnd10mwter') then
         do i=1,mlat
-           corp(i,n+n0)=corp(i,nrf2_uwnd10m)
+           corp(i,loc)=corp(i,nrf2_uwnd10m)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwllp(i,nrf2_uwnd10m)
+           hwllp(i,loc)=hwllp(i,nrf2_uwnd10m)
         end do
         cycle
      endif
 
      if (cvarsmd(n)=='vwnd10mwter') then
         do i=1,mlat
-           corp(i,n+n0)=corp(i,nrf2_vwnd10m)
+           corp(i,loc)=corp(i,nrf2_vwnd10m)
         end do
         do i=0,mlat+1
-           hwllp(i,n+n0)=hwllp(i,nrf2_vwnd10m)
+           hwllp(i,loc)=hwllp(i,nrf2_vwnd10m)
         end do
         cycle
      endif
 !  if not found use default
      do i=1,mlat
-        corp(i,n+n0)=corz_default
+        corp(i,loc)=corz_default
      end do
      do i=0,mlat+1
-        hwllp(i,n+n0)=hwll_default
+        hwllp(i,loc)=hwll_default
      end do
   enddo
 

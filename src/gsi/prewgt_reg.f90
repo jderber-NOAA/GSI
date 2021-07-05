@@ -161,7 +161,7 @@ subroutine prewgt_reg(mype)
 
 ! Allocate arrays in stats file
   allocate ( corz(1:mlat,1:nsig,1:nc3d) )
-  allocate ( corp(1:mlat,nc2d) )
+  allocate ( corp(1:mlat,nvars-nc3d) )
   allocate ( hwll(0:mlat+1,1:nsig,1:nc3d),hwllp(0:mlat+1,nvars-nc3d) )
   allocate ( vz(1:nsig,0:mlat+1,1:nc3d) )
 

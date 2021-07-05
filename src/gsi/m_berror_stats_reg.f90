@@ -348,7 +348,6 @@ end subroutine berror_read_bal_reg
   real(r_kind),parameter:: vz_oz    = 0.53333333_r_kind
 
 !  workspace variables not returned
-  real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
   real(r_single),dimension(:,:),allocatable::  corqq_avn
   real(r_single),dimension(:,:),allocatable:: corz_avn,hwll_avn,vztdq_avn
 
@@ -371,7 +370,6 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nsigstat,nlatstat,isig
   integer(i_kind) :: loc,m1,m,i,n,j,k,ivar,ic,n0
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
-  integer(i_kind),dimension(mvars) :: motlevs
   real(r_kind) :: factoz
   real(r_kind) :: raux
 

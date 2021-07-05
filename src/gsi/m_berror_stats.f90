@@ -268,9 +268,8 @@ end subroutine read_bal
 
 subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwoption,mype,lunit)
 
-   use constants,only : rad2deg
    use kinds,only : r_single,r_kind
-   use gridmod,only : nlat,nlon,nsig,rlats,ak5,bk5
+   use gridmod,only : nlat,nlon,nsig
    use radiance_mod, only: n_clouds_fwd,cloud_names_fwd
 
    implicit none
@@ -326,7 +325,7 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
    logical,allocatable,dimension(:) :: found3d
    logical,allocatable,dimension(:) :: found2d
 
-   real(r_single),allocatable,dimension(:)  :: clat,sigma
+!  real(r_single),allocatable,dimension(:)  :: clat,sigma
    real(r_single),allocatable,dimension(:,:):: hwllin
    real(r_single),allocatable,dimension(:,:):: corzin
    real(r_single),allocatable,dimension(:,:):: corq2

@@ -432,13 +432,6 @@ end subroutine berror_read_bal_reg
         var=varshort
      endif
      if (istat /= 0) exit
-!    if(trim(var) == 'cw' .or. trim(var) == 'sst' .or. trim(var) == 'oz')then
-!       read(inerr)
-!       read(inerr)
-!       if (isig>1)read(inerr)
-!       cycle read
-!    endif
-!    load the variances
      do n=1,nrf
         if (trim(var)==cvars(n)) then
            nrf_err(n)=.true.
@@ -694,14 +687,17 @@ end subroutine berror_read_bal_reg
 ! 2d variable
   do n=1,nc2d
      loc=nrf2_loc(n)
-     if (n==nrf2_sst) then
-        do i=1,mlat
-           corp(i,n)=zero_3
-        end do
-        do i=0,mlat+1
-           hwllp(i,n)=hwll(i,1,nrf3_sf)
-        end do
-     end if
+!  If we want to use the sst in global file uncomment the following if statement
+!    if(.not. usenewgfsberror)then
+       if (n==nrf2_sst) then
+          do i=1,mlat
+             corp(i,n)=zero_3
+          end do
+          do i=0,mlat+1
+             hwllp(i,n)=hwll(i,1,nrf3_sf)
+          end do
+       end if
+!    end if
      if (n==nrf2_gust) then
         do i=1,mlat
            corp(i,n)=three

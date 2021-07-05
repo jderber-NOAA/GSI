@@ -505,7 +505,6 @@ end subroutine berror_read_bal_reg
                     end do
                  end if
               end do
-              exit
            end if
         end do
      end if
@@ -524,7 +523,6 @@ end subroutine berror_read_bal_reg
                 hwllp(0,n)=hwll_avn(0,1)
                 hwllp(mlat+1,n)=hwll_avn(mlat+1,1)
              end if
-             exit
           end if
        end do
      end if
@@ -538,6 +536,7 @@ end subroutine berror_read_bal_reg
 ! 3d variable
   do n=1,nc3d
      loc=nrf3_loc(n)
+     if (loc <= 0)cycle
      if (nrf_err(loc)) then
         do k=1,nsig
            m=lsig(k)
@@ -748,7 +747,7 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     else if (n==nrf2_pmsl .or. n==nrf2_ps) then
+     else if (n==nrf2_pmsl) then
         do i=1,mlat
            corp(i,n)=corp(i,nrf2_ps)
         end do

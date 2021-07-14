@@ -653,14 +653,14 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
        call die('read_fv3_netcdf_guess','not enough PEs to read in fv3 fields' )
     endif
     mype_u=0           
-    mype_v=1
-    mype_t=2
-    mype_p=3
-    mype_q=4
-    mype_ql=5
-    mype_oz=6
-    mype_2d=7 
-    mype_delz=8
+    mype_v=mod(1,npe)
+    mype_t=mod(2,npe)
+    mype_p=mod(3,npe)
+    mype_q=mod(4,npe)
+    mype_ql=mod(5,npe)
+    mype_oz=mod(6,npe)
+    mype_2d=mod(7,npe)
+    mype_delz=mod(8,npe)
       
     allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
     allocate(displss(npe),displss2d(npe),displsz_g(npe) )

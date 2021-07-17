@@ -152,19 +152,19 @@ end subroutine berror_set_reg
 !                      - make changes for generalized control variables
 !EOP ___________________________________________________________________
 
-  character(len=*),parameter :: myname_=myname//'::berror_read_bal_reg'
+    character(len=*),parameter :: myname_=myname//'::berror_read_bal_reg'
 
-!   workspaces/variables for data not returned
+!     workspaces/variables for data not returned
 
-  integer(i_kind) k,i,m,j,m1,l1,l
-  integer(i_kind):: nsigstat,nlatstat
-  integer(i_kind):: inerr
+    integer(i_kind) k,i,m,j,m1,l1,l
+    integer(i_kind):: nsigstat,nlatstat
+    integer(i_kind):: inerr
 
-  real(r_kind),dimension(nsig) :: rlsig
-  real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
-  real(r_single),dimension(:,:),allocatable::  bv_avn,wgv_avn
-  real(r_single),dimension(:,:,:),allocatable:: agv_avn
-  real(r_kind),dimension(:),allocatable::  rlsigo
+    real(r_kind),dimension(nsig) :: rlsig
+    real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
+    real(r_single),dimension(:,:),allocatable::  bv_avn,wgv_avn
+    real(r_single),dimension(:,:,:),allocatable:: agv_avn
+    real(r_kind),dimension(:),allocatable::  rlsigo
 
 !   Open background error statistics file
     inerr=default_unit_
@@ -260,6 +260,8 @@ end subroutine berror_set_reg
        enddo
     enddo
 
+    deallocate (agv_avn,bv_avn,wgv_avn,clat_avn,sigma_avn,rlsigo)
+
     agvi(0,:,:)=agvi(1,:,:)
     wgvi(0,:)=wgvi(1,:)
     bvi(0,:)=bvi(1,:)
@@ -267,7 +269,6 @@ end subroutine berror_set_reg
     wgvi(mlat+1,:)=wgvi(mlat,:)
     bvi(mlat+1,:)=bvi(mlat,:)
      
-    deallocate (agv_avn,bv_avn,wgv_avn,clat_avn,sigma_avn,rlsigo)
     return
 end subroutine berror_read_bal_reg
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -383,6 +384,11 @@ end subroutine berror_read_bal_reg
 
   print_verbose=.false.
   if(verbose)print_verbose=.true.
+
+  do k=1,nsig
+     rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
+  enddo
+
 ! Open background error statistics file
   inerr=default_unit_
   if(present(unit)) inerr=unit
@@ -392,14 +398,6 @@ end subroutine berror_read_bal_reg
   rewind inerr
   read(inerr) nsigstat,nlatstat
 
-! Read background error file to get balance variables
-  read(inerr)
-  read(inerr)
-
-! compute vertical(pressure) interpolation index and weight
-  do k=1,nsig
-     rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
-  enddo
 
   if(mype==0) then
      write(6,*) myname_,'(PREWGT_REG):  read error amplitudes ', &
@@ -408,16 +406,20 @@ end subroutine berror_read_bal_reg
         mype,nsigstat,nlatstat
   end if
 
-   allocate(nrf3_loc(nc3d),nrf2_loc(nc2d),nmotl_loc(mvars))
-   do n=1,nc3d
-      nrf3_loc(n)=getindex(cvars,cvars3d(n))
-   enddo
-   do n=1,nc2d
-      nrf2_loc(n)=getindex(cvars,cvars2d(n))
-   enddo
-   do n=1,mvars
-      nmotl_loc(n)=getindex(cvars,cvarsmd(n))
-   enddo
+! Read background error file to get past alance variables
+  read(inerr)
+  read(inerr)
+
+  allocate(nrf3_loc(nc3d),nrf2_loc(nc2d),nmotl_loc(mvars))
+  do n=1,nc3d
+     nrf3_loc(n)=getindex(cvars,cvars3d(n))
+  enddo
+  do n=1,nc2d
+     nrf2_loc(n)=getindex(cvars,cvars2d(n))
+  enddo
+  do n=1,mvars
+     nmotl_loc(n)=getindex(cvars,cvarsmd(n))
+  enddo
 
 
 ! Read amplitudes
@@ -431,7 +433,7 @@ end subroutine berror_read_bal_reg
         read(inerr,iostat=istat) varshort, isig
         var=varshort
      endif
-     if (istat /= 0) exit
+     if (istat /= 0) exit read
      do n=1,nrf
         if (trim(var)==cvars(n)) then
            nrf_err(n)=.true.
@@ -450,13 +452,6 @@ end subroutine berror_read_bal_reg
      end if
 
      allocate ( corz_avn(1:mlat,1:isig) )
-     if(usenewgfsberror)then
-       allocate ( hwll_avn(mlat,1:isig) )
-       allocate ( vztdq_avn(1:isig,mlat) )
-     else
-       allocate ( hwll_avn(0:mlat+1,1:isig) )
-       allocate ( vztdq_avn(1:isig,0:mlat+1) )
-     end if
 
      if (trim(var)/='q' .or. (trim(var)=='cw' .and. cwoption==2)) then
         read(inerr) corz_avn
@@ -465,13 +460,21 @@ end subroutine berror_read_bal_reg
         read(inerr) corz_avn,corqq_avn
      end if
 
-     read(inerr) hwll_avn
-     if (isig>1) then
-        read(inerr) vztdq_avn
+     if(usenewgfsberror)then
+       allocate ( hwll_avn(mlat,1:isig) )
+     else
+       allocate ( hwll_avn(0:mlat+1,1:isig) )
      end if
+     read(inerr) hwll_avn
 
 
      if (isig==msig) then
+        if(usenewgfsberror)then
+          allocate ( vztdq_avn(1:isig,mlat) )
+        else
+          allocate ( vztdq_avn(1:isig,0:mlat+1) )
+        end if
+        read(inerr) vztdq_avn
         do n=1,nc3d
            if (nrf3_loc(n)==loc) then
               if ((trim(var)=='q' .and. qoption==2) .or. (trim(var)=='cw' .and. cwoption==2)) then
@@ -508,9 +511,9 @@ end subroutine berror_read_bal_reg
               exit
            end if
         end do
-     end if
+        deallocate ( vztdq_avn )
 
-     if (isig==1) then
+     else if(isig == 1)then
        do n=1,nc2d
           if (nrf2_loc(n)==loc) then
              do i=1,mlat
@@ -530,7 +533,6 @@ end subroutine berror_read_bal_reg
      end if
      deallocate ( corz_avn )
      deallocate ( hwll_avn )
-     if(allocated(vztdq_avn)) deallocate ( vztdq_avn )
      if(allocated(corqq_avn)) deallocate ( corqq_avn )
   enddo read
   close(inerr)
@@ -622,39 +624,38 @@ end subroutine berror_read_bal_reg
      vz(:,:,nrf3_oz)=vz_oz
   end if
 
-  if (cwcoveqqcov_ .and. nrf3_cw>0) then
-     corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
-     hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
-     vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
-  end if
+  if(nrf3_cw > 0)then
+     if (cwcoveqqcov_ ) then
+        corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
+        hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
+        vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
 
-  if ((.not. cwcoveqqcov_) .and. nrf3_cw>0) then
-     corz(:,:,nrf3_cw)=zero
-     if (cwoption==2) then
-        do k=1,nsig
-           if (ges_prslavg(k)>15.0_r_kind) then
-              do j=1,mlat
-                 varcw(j,k)=max(real(corz(j,k,nrf3_cw),r_kind),zero)
-                 corz(j,k,nrf3_cw)=one
-              enddo
-           end if
-        enddo
+     else
+        corz(:,:,nrf3_cw)=zero
+        if (cwoption==2) then
+           do k=1,nsig
+              if (ges_prslavg(k)>15.0_r_kind) then
+                 do j=1,mlat
+                    varcw(j,k)=max(real(corz(j,k,nrf3_cw),r_kind),zero)
+                    corz(j,k,nrf3_cw)=one
+                 enddo
+              end if
+           enddo
+        end if
+
+        if (cwoption==1 .or. cwoption==3) then
+           do k=1,nsig
+              if (ges_prslavg(k)>15.0_r_kind) then
+                 do j=1,mlat
+                    corz(j,k,nrf3_cw)=one
+                 end do
+              end if
+           end do
+           hwll(:,:,nrf3_cw)=0.5_r_kind*hwll(:,:,nrf3_q)
+           vz(:,:,nrf3_cw)=0.5_r_kind*vz(:,:,nrf3_q)
+        end if
      end if
-
-     if (cwoption==1 .or. cwoption==3) then
-        do k=1,nsig
-           if (ges_prslavg(k)>15.0_r_kind) then
-              do j=1,mlat
-                 corz(j,k,nrf3_cw)=one
-              end do
-           end if
-        end do
-        hwll(:,:,nrf3_cw)=0.5_r_kind*hwll(:,:,nrf3_q)
-        vz(:,:,nrf3_cw)=0.5_r_kind*vz(:,:,nrf3_q)
-     end if
-  end if
-
-  if (icloud_cv .and. n_clouds_fwd>0 .and. nrf3_cw<=0 .and. cwoption==3) then
+  else if (icloud_cv .and. n_clouds_fwd>0 .and. cwoption==3) then
      do n=1,size(cvars3d)
         do ic=1,n_clouds_fwd
            if(trim(cvars3d(n))==trim(cloud_names_fwd(ic))) then

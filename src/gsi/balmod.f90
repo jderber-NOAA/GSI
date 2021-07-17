@@ -396,17 +396,6 @@ contains
 !   Set internal parameters to m_berror_stats
     call berror_set_reg('cwcoveqqcov',cwcoveqqcov)
 
-!   Read dimension of stats file
-    inerr=22
-    call berror_get_dims_reg(msig,mlat)
-
-!   Allocate arrays in stats file
-    allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
-    allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
-    
-!   Read in background error stats and interpolate in vertical to that specified in namelist
-    call berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,inerr)
-    
 !   ke_vp used to project SF to balanced VP
 !   below sigma level 0.8
 
@@ -419,12 +408,28 @@ contains
        endif
     enddo j_loop
     
-    agvk=zero
-    bvk=zero
-    wgvk=zero
     ke_vp=ke-1
     if (twodvar_regional) ke_vp=ke
-    if (.not.twodvar_regional) then
+!   Alternatively, zero out all balance correlation matrices
+!   for univariate surface analysis
+    if (twodvar_regional .or. lnobalance) then
+       if(mype==0) write(6,*)"***WARNING*** running univariate analysis." 
+       agvk=zero
+       bvk=zero
+       wgvk=zero
+       if(lnobalance) agvk_lm(:,:)=zero
+    else
+!      Read dimension of stats file
+       inerr=22
+       call berror_get_dims_reg(msig,mlat)
+
+!      Allocate arrays in stats file
+       allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
+       allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
+    
+!      Read in background error stats and interpolate in vertical to that specified in namelist
+       call berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,inerr)
+    
        do k=1,ke_vp
           do j=1,lon2
              do i=1,lat2
@@ -470,20 +475,9 @@ contains
              end do
           end do
        end do
-    endif
-
-
-!   Alternatively, zero out all balance correlation matrices
-!   for univariate surface analysis
-    if (twodvar_regional .or. lnobalance) then
-       if(mype==0) write(6,*)"***WARNING*** running univariate analysis." 
-       bvk(:,:,:)=zero
-       agvk(:,:,:,:)=zero
-       wgvk(:,:,:)=zero
-       if(lnobalance) agvk_lm(:,:)=zero
+       deallocate (agvi,bvi,wgvi)
     endif
     
-    deallocate (agvi,bvi,wgvi)
     
     return
   end subroutine prebal_reg

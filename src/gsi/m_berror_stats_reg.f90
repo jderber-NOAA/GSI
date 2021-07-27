@@ -10,7 +10,7 @@
 
     module m_berror_stats_reg
       use kinds,only : i_kind,r_kind
-      use constants, only: zero,one,max_varname_length
+      use constants, only: zero,one,max_varname_length,half
       use gridmod, only: nsig
       use chemmod, only : berror_chem,upper2lower,lower2upper
       use m_berror_stats, only: usenewgfsberror,berror_stats
@@ -373,6 +373,7 @@ end subroutine berror_read_bal_reg
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
   real(r_kind) :: factoz
   real(r_kind) :: raux
+  real(r_kind),dimension(nsig):: dlsig
 
   ! corz = sqrt(corz)
   real(r_kind), parameter :: corz_default=one,hwll_default=100000_r_kind,vz_default=one
@@ -921,6 +922,23 @@ end subroutine berror_read_bal_reg
   enddo
 
   deallocate(nrf3_loc,nrf2_loc,nmotl_loc)
+! Normalize vz with del sigmma and convert to vertical grid units!
+  if( .not. usenewgfsberror)then
+     dlsig(1)=rlsig(1)-rlsig(2)
+     do k=2,nsig-1
+        dlsig(k)=half*(rlsig(k-1)-rlsig(k+1))
+     enddo
+     dlsig(nsig)=rlsig(nsig-1)-rlsig(nsig)
+
+     do n=1,nc3d
+        do j=0,mlat+1
+           do k=1,nsig
+              vz(k,j,n)=vz(k,j,n)*dlsig(k)
+           end do
+        end do
+     end do
+  end if
+
 
   return
 end subroutine berror_read_wgt_reg

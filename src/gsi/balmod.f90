@@ -410,6 +410,18 @@ contains
     
     ke_vp=ke-1
     if (twodvar_regional) ke_vp=ke
+
+!   Read dimension of stats file
+    inerr=22
+    call berror_get_dims_reg(msig,mlat)
+
+!   Allocate arrays in stats file
+    allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
+    allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
+    
+!   Read in background error stats and interpolate in vertical to that specified in namelist
+    call berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,inerr)
+
 !   Alternatively, zero out all balance correlation matrices
 !   for univariate surface analysis
     if (twodvar_regional .or. lnobalance) then
@@ -419,16 +431,6 @@ contains
        wgvk=zero
        if(lnobalance) agvk_lm(:,:)=zero
     else
-!      Read dimension of stats file
-       inerr=22
-       call berror_get_dims_reg(msig,mlat)
-
-!      Allocate arrays in stats file
-       allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
-       allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
-    
-!      Read in background error stats and interpolate in vertical to that specified in namelist
-       call berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,inerr)
     
        do k=1,ke_vp
           do j=1,lon2
@@ -475,8 +477,8 @@ contains
              end do
           end do
        end do
-       deallocate (agvi,bvi,wgvi)
     endif
+    deallocate (agvi,bvi,wgvi)
     
     
     return

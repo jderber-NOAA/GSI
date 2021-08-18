@@ -923,21 +923,19 @@ end subroutine berror_read_bal_reg
 
   deallocate(nrf3_loc,nrf2_loc,nmotl_loc)
 ! Normalize vz with del sigmma and convert to vertical grid units!
-  if( .not. usenewgfsberror)then
-     dlsig(1)=rlsig(1)-rlsig(2)
-     do k=2,nsig-1
-        dlsig(k)=half*(rlsig(k-1)-rlsig(k+1))
-     enddo
-     dlsig(nsig)=rlsig(nsig-1)-rlsig(nsig)
+  dlsig(1)=rlsig(1)-rlsig(2)
+  do k=2,nsig-1
+     dlsig(k)=half*(rlsig(k-1)-rlsig(k+1))
+  enddo
+  dlsig(nsig)=rlsig(nsig-1)-rlsig(nsig)
 
-     do n=1,nc3d
-        do j=0,mlat+1
-           do k=1,nsig
-              vz(k,j,n)=vz(k,j,n)*dlsig(k)
-           end do
+  do n=1,nc3d
+     do j=0,mlat+1
+        do k=1,nsig
+           vz(k,j,n)=vz(k,j,n)*dlsig(k)
         end do
      end do
-  end if
+  end do
 
 
   return

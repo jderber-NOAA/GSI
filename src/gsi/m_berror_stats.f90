@@ -158,6 +158,8 @@ subroutine inquire_berror(lunit,mype)
    allocate ( clat_avn(mlat) )
    allocate ( sigma_avn(1:msig) )
    read(inerr,iostat=ier)clat_avn,sigma_avn
+!  Check to see if sigma_avn contains the expected values for new gfs berror
+!  files.
    do i=1,msig-1
      if(sigma_avn(i) < sigma_avn(i+1))then
          errtot=1

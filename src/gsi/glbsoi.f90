@@ -173,7 +173,7 @@ subroutine glbsoi
   integer(i_kind) jiterlast,lunix,lunit
   real(r_kind) :: zgg,zxy
   character(len=12) :: clfile
-  logical print_verbose
+  logical print_verbose,init_pass,last_pass
 
   print_verbose=.false.
   if(verbose)print_verbose=.true.
@@ -316,11 +316,15 @@ subroutine glbsoi
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
+!    init_pass= jiter == jiterstart
+!    last_pass= jiter == jiterlast
+     init_pass=.true.
+     last_pass=.true.
      if (mype==0) write(6,'(a44,4i5)')'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
         jiter,jiterstart,jiterlast,jiterend
 
 !    Set up right hand side of analysis equation
-     call setuprhsall(ndata,mype,.true.,.true.)
+     call setuprhsall(ndata,mype,init_pass,last_pass)
 
 !    Estimate correlation length for lcbas if R_option==.true.
 !      For this to work we need to have run setuplcbas first to get the weights.

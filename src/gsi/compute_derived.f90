@@ -179,10 +179,6 @@ subroutine compute_derived(mype,init_pass)
      call die(myname,'invalid init_pass, ntguessig =',ntguessig)
 
 
-! Get required indexes from control vector names
-  nrf3_q=getindex(cvars3d,'q')
-  iq_loc=getindex(nrf_var,'q')
-
 ! Compute qsat regardless of presence of q in guess
   iderivative=0
   ice=.true.
@@ -200,7 +196,7 @@ subroutine compute_derived(mype,init_pass)
         do j=1,lon2
            do i=1,lat2
 ! Limit q to be >= qmin
-              ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
+!             ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
 ! limit q to be <= ges_qsat
               if(clip_supersaturation) ges_q(i,j,k) = min(ges_q(i,j,k),ges_qsat(i,j,k,ii))
            end do
@@ -455,6 +451,9 @@ subroutine compute_derived(mype,init_pass)
            end do
         end do
         if( regional ) then
+!          Get required indexes from control vector names
+           nrf3_q=getindex(cvars3d,'q')
+           iq_loc=getindex(nrf_var,'q')
            allocate(rh0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
            call sub2fslab(rhgues,rh0f)
            do k=indices%kps,indices%kpe
@@ -541,7 +540,8 @@ subroutine compute_derived(mype,init_pass)
                                               rh3f(i,j,k1),one)
                        end if
                        do igauss=1,ngauss
-                          factor=factk*an_amp0(ivar)/sqrt(real(ngauss,r_kind))
+!                         factor=factk*an_amp0(ivar)/sqrt(real(ngauss,r_kind))
+                          factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
                           filter_p3(1)%amp(igauss,i,j,k)=factor*filter_p3(2)%amp(igauss,i,j,k)
                           if(allocated(ensamp3f)) then
                              filter_p3(1)%amp(igauss,i,j,k)=filter_p3(1)%amp(igauss,i,j,k)*sqrt(ensamp3f(i,j,k))

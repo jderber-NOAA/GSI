@@ -471,7 +471,7 @@ end subroutine berror_read_bal_reg
 
      if (isig==msig) then
         if(usenewgfsberror)then
-          allocate ( vztdq_avn(1:isig,mlat) )
+          allocate ( vztdq_avn(mlat,1:isig) )
         else
           allocate ( vztdq_avn(1:isig,0:mlat+1) )
         end if
@@ -496,16 +496,16 @@ end subroutine berror_read_bal_reg
                  if(usenewgfsberror)then
                     do i=1,mlat
                        hwll_tmp(i,k,n)=hwll_avn(i,k)
-                       vz_tmp(k,i,n)=vztdq_avn(k,i)
+                       vz_tmp(k,i,n)=vztdq_avn(i,k)
                     end do
                     hwll_tmp(0,k,n)=hwll_avn(1,k)
                     hwll_tmp(mlat+1,k,n)=hwll_avn(mlat,k)
-                    vz_tmp(k,0,n)=vztdq_avn(k,1)
-                    vz_tmp(k,mlat+1,n)=vztdq_avn(k,mlat)
+                    vz_tmp(k,0,n)=vztdq_avn(1,k)
+                    vz_tmp(k,mlat+1,n)=vztdq_avn(mlat,k)
                  else
                     do i=0,mlat+1
                        hwll_tmp(i,k,n)=hwll_avn(i,k)
-                       vz_tmp(k,i,n)=vztdq_avn(k,i)
+                       vz_tmp(k,i,n)=vztdq_avn(i,k)
                     end do
                  end if
               end do

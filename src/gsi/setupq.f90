@@ -528,6 +528,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !    Load obs error and value into local variables
      obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
      qob = data(iqob,i) 
+     qob=max(zero,min(qsges,qob))
 
      rmaxerr=rmaxerr*qsges
      rmaxerr=max(small2,rmaxerr)

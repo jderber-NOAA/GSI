@@ -172,7 +172,7 @@ subroutine pcgsoi()
   real(r_kind) stp,b,converge
   real(r_kind) gsave,small_step
   real(r_kind) gnormx,penx,penalty,penaltynew
-  real(r_double) pennorm
+  real(r_double) pennorm,aindex
   real(r_quad) zjo
   real(r_quad) :: zdla
   real(r_quad),dimension(4):: dprod
@@ -322,7 +322,7 @@ subroutine pcgsoi()
      end if
 
 !    2. Multiply by background error
-     call multb(lanlerr,gradx,grady)
+     call multb(gradx,grady)
 
      if(iorthomax>0) then
 !       save gradients
@@ -338,34 +338,27 @@ subroutine pcgsoi()
 
 !    3. Calculate new norm of gradients and factors going into b calculation
      dprod(1) = qdot_prod_sub(gradx,grady)
-     if(iter > 0)then
-        gsave=gnorm(3)
-        if (lanlerr) then
+     if(iter > 0 .and. .not. lanlerr)then
+        do i=1,nclen
+           xdiff%values(i)=vprecond(i)*xdiff%values(i)
+           ydiff%values(i)=vprecond(i)*ydiff%values(i)
+        end do
+        dprod(3) = qdot_prod_sub(xdiff,grady)
+        dprod(4) = qdot_prod_sub(ydiff,gradx)
 ! xdiff used as a temporary array
-           do i=1,nclen
-              xdiff%values(i)=vprecond(i)*gradx%values(i)
-           end do
-           dprod(2) = qdot_prod_sub(xdiff,grady)
-           call mpl_allreduce(2,qpvals=dprod)
-           gnorm(2)=dprod(2)
-           gnorm(3)=dprod(2)
-        else
-           do i=1,nclen
-              xdiff%values(i)=vprecond(i)*(gradx%values(i)-xdiff%values(i))
-              ydiff%values(i)=vprecond(i)*(grady%values(i)-ydiff%values(i))
-           end do
-           dprod(2) = qdot_prod_sub(xdiff,grady)
-           dprod(3) = qdot_prod_sub(ydiff,gradx)
-! xdiff used as a temporary array
-           do i=1,nclen
-              xdiff%values(i)=vprecond(i)*gradx%values(i)
-           end do
-           dprod(4) = qdot_prod_sub(xdiff,grady)
-           call mpl_allreduce(4,qpvals=dprod)
-!          Two dot products in gnorm(2) should be same, but are slightly
-!          different due to round off, so use average.
-           gnorm(2)=0.5_r_quad*(dprod(2)+dprod(3))
-           gnorm(3)=dprod(4)
+        do i=1,nclen
+           xdiff%values(i)=vprecond(i)*gradx%values(i)
+        end do
+        dprod(2) = qdot_prod_sub(xdiff,grady)
+        call mpl_allreduce(4,qpvals=dprod)
+!       Two dot products in dprod(3) and dprod(4) should be same, but are slightly
+!       different due to round off, so use average.
+        gnorm(2)=dprod(2)-0.5_r_quad*(dprod(3)+dprod(4))
+        gnorm(3)=dprod(2)
+        if(mype == 0)then
+           aindex=abs(dprod(3)/dprod(2))
+           write(iout_iter,*) 'NL Index ',aindex
+           if(aindex > 0.5 .or. print_verbose) write(iout_iter,*) 'NL Values ', dprod(3),dprod(2)
         end if
      else
 ! xdiff used as a temporary array
@@ -375,13 +368,14 @@ subroutine pcgsoi()
         dprod(2) = qdot_prod_sub(xdiff,grady)
         call mpl_allreduce(2,qpvals=dprod)
         if(print_diag_pcg) call prt_control_norms(grady,'grady')
+        gnorm(2)=dprod(2)
         gnorm(3)=dprod(2)
 
      end if
 
      gnorm(1)=dprod(1)
-     if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
 
+     if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
 
 !    4. Calculate b and new search direction
      b=zero
@@ -416,9 +410,10 @@ subroutine pcgsoi()
         end do
         call read_guess_solution(diry,mype,read_success)
 !       Multiply by background error
-        call multb(lanlerr,diry,dirx)
+        call multb(diry,dirx)
      endif
-
+     gsave=gnorm(3)
+  
 !    5. Calculate stepsize and update solution
 !    Convert search direction from control space to physical space
      do ii=1,nobs_bins
@@ -568,7 +563,7 @@ subroutine pcgsoi()
      end do
   
 !    Multiply by background error
-     call multb(lanlerr,gradx,grady)
+     call multb(gradx,grady)
 
 ! Print final Jo table
      zgend=dot_product(gradx,grady,r_quad)
@@ -833,7 +828,7 @@ subroutine periodic_(gradx)
 
 end subroutine periodic_
 
-subroutine multb(lanlerr,vec1,vec2)
+subroutine multb(vec1,vec2)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    multb    multiply vec1 by background error to equal vec2
@@ -863,7 +858,6 @@ subroutine multb(lanlerr,vec1,vec2)
   
   type(control_vector),intent(inout) :: vec1
   type(control_vector),intent(inout) :: vec2
-  logical             ,intent(in   ) :: lanlerr
 
      if(periodic)call periodic_(vec1)
 !   start by setting vec2=vec1 and then operate on vec2 (unless gram_schmidt)
@@ -892,7 +886,7 @@ end subroutine multb
 subroutine c2s(hat,val,bias,llprt,ltest)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    multb    control2state for all options
+! subprogram:    c2s   control2state for all options
 !   prgmmr:      derber
 !   
 ! abstract: generalized control2state 
@@ -958,7 +952,7 @@ end subroutine c2s
 subroutine c2s_ad(hat,val,bias,llprt)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    multb    control2state for all options
+! subprogram:    c2s_ad   adjoint of control2state for all options
 !   prgmmr:      derber
 !   
 ! abstract: generalized control2state 

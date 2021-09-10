@@ -383,6 +383,7 @@ contains
 
     integer(i_kind) i,j,ii
     real(r_kind) stndev
+    real(r_kind) obs_count
     logical new_tail
     
     stndev = one/biaspredvar
@@ -404,12 +405,17 @@ contains
           do j=1,npred
              ii=ii+1
              if (inew_rad(i)) then
-                varA(j,i)=r10
+                varprd(ii)=10000.0_r_kind
              else
-                varA(j,i)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
-                if (varA(j,i)>r10) varA(j,i)=r10
+                if (ostats(i)<=20.0_r_kind) then 
+                   varA(j,i)=two*varA(j,i)+1.0e-6_r_kind
+                   varprd(ii)=varA(j,i)
+                else
+                   varprd(ii)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
+                end if
+                if (varprd(ii)>r10) varprd(ii)=r10
+                if (varA(j,i)>10000.0_r_kind) varA(j,i)=10000.0_r_kind
              end if
-             varprd(ii)=varA(j,i)
           end do
        end do
 
@@ -419,37 +425,50 @@ contains
              do j=1,npredt
                 ii=ii+1
 
-                new_tail = varA_t(j,i)==zero
+                if (aircraft_t_bc_pof) then 
+                   obs_count = ostats_t(j,i)
+                   new_tail = varA_t(j,i)==zero
+                end if
                 if (aircraft_t_bc) then 
+                   obs_count = ostats_t(1,i)
                    new_tail = .true.
                    if (any(varA_t(:,i)/=zero)) new_tail = .false.
                 end if
 
                 if (new_tail) then
-                   if (aircraft_t_bc .and. j==2) then
-                      varA_t(j,i)=1.0e-4_r_kind
-                   else if (aircraft_t_bc .and. j==3) then
-                      varA_t(j,i)=1.0e-5_r_kind
-                   else
-                      varA_t(j,i)=one_tenth*one_tenth
-                   end if
+                   varprd(ii)=one_tenth*one_tenth
+                   if (aircraft_t_bc .and. j==2) varprd(ii)=1.0e-4_r_kind
+                   if (aircraft_t_bc .and. j==3) varprd(ii)=1.0e-5_r_kind
                 else
-                   if (aircraft_t_bc .and. j==2) then
-                      varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
-                   else if (aircraft_t_bc .and. j==3) then
-                      varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
+                   if (obs_count<=10.0_r_kind) then
+                      if (aircraft_t_bc .and. j==2) then
+                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-6_r_kind
+                      else if (aircraft_t_bc .and. j==3) then
+                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-7_r_kind
+                      else
+                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-5_r_kind
+                      end if
+                      varprd(ii)=varA_t(j,i)
                    else
-                      varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
+                      if (aircraft_t_bc .and. j==2) then
+                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
+                      else if (aircraft_t_bc .and. j==3) then
+                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
+                      else
+                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
+                      end if
                    end if
+                   if (varprd(ii)>one_tenth) varprd(ii)=one_tenth
+                   if (varA_t(j,i)>one_tenth) varA_t(j,i)=one_tenth
                    if (aircraft_t_bc .and. j==2) then
+                      if (varprd(ii)>1.0e-3_r_kind) varprd(ii)=1.0e-3_r_kind
                       if (varA_t(j,i)>1.0e-3_r_kind) varA_t(j,i)=1.0e-3_r_kind
-                   else if (aircraft_t_bc .and. j==3) then
+                   end if
+                   if (aircraft_t_bc .and. j==3) then
+                      if (varprd(ii)>1.0e-4_r_kind) varprd(ii)=1.0e-4_r_kind
                       if (varA_t(j,i)>1.0e-4_r_kind) varA_t(j,i)=1.0e-4_r_kind
-                   else
-                      if (varA_t(j,i)>one_tenth) varA_t(j,i)=one_tenth
                    end if
                 end if
-                varprd(ii)=varA_t(j,i)
              end do
           end do
        end if
@@ -457,6 +476,7 @@ contains
 
     return
   end subroutine set_predictors_var
+
 
   subroutine pcinfo
 !$$$  subprogram documentation block
@@ -505,6 +525,7 @@ contains
         do i=1,jpch_rad
            do j=1,npred
               ii=ii+1
+!             if (ostats(i)>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats(j,i)*varprd(ii))
               if (ostats(i)>zero) vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
               if (ostats(i)>20.0_r_kind) then
                  if (rstats(j,i)>zero) then
@@ -529,6 +550,7 @@ contains
                 if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
                 if (aircraft_t_bc) obs_count = ostats_t(1,i)
 
+!               if (obs_count>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>3.0_r_kind) then
                    varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))

@@ -170,15 +170,14 @@ subroutine pcgsoi()
   character(5) step(2)
   integer(i_kind) i,istep,iobs,ii,nprt
   real(r_kind) stp,b,converge
-  real(r_kind) gsave,small_step
+  real(r_kind) gsave,small_step,aindex
   real(r_kind) gnormx,penx,penalty,penaltynew
-  real(r_double) pennorm,aindex
-  real(r_quad) zjo
-  real(r_quad) :: zdla
-  real(r_quad),dimension(4):: dprod
-  real(r_kind),dimension(3):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),fjcostnew(4),zgend,zfend
   real(r_kind) :: fjcost_e
+  real(r_kind),dimension(3):: gnorm
+  real(r_double) pennorm
+  real(r_quad) :: zdla,zjo
+  real(r_quad),dimension(4):: dprod
   type(control_vector) :: gradx,grady,dirx,diry,ydiff,xdiff
   type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
   type(gsi_bundle) :: eval(ntlevs_ens)
@@ -339,10 +338,6 @@ subroutine pcgsoi()
 !    3. Calculate new norm of gradients and factors going into b calculation
      dprod(1) = qdot_prod_sub(gradx,grady)
      if(iter > 0 .and. .not. lanlerr)then
-        do i=1,nclen
-           xdiff%values(i)=vprecond(i)*xdiff%values(i)
-           ydiff%values(i)=vprecond(i)*ydiff%values(i)
-        end do
         dprod(3) = qdot_prod_sub(xdiff,grady)
         dprod(4) = qdot_prod_sub(ydiff,gradx)
 ! xdiff used as a temporary array
@@ -380,27 +375,24 @@ subroutine pcgsoi()
 !    4. Calculate b and new search direction
      b=zero
      if (.not. restart .or. iter > 0) then
-        if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
-        if (b<zero .or. b>7.0_r_kind) then
-           if (mype==0) then
-              if (iout_6) write(6,105) gnorm(2),gsave,b
-              write(iout_iter,105) gnorm(2),gsave,b
+        if (iter > 1 .or. .not. read_success)then
+           if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
+           if (b<zero .or. b>7.0_r_kind) then
+              if (mype==0) then
+                 if (iout_6) write(6,105) gnorm(2),gsave,b
+                 write(iout_iter,105) gnorm(2),gsave,b
+              endif
+              b=zero
            endif
-           b=zero
-        endif
-        if (mype==0 .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:3),b=',gnorm,b
-        if(read_success .and. iter == 1)b=zero
-
-        if (.not. lanlerr) then
-           do i=1,nclen
-              xdiff%values(i)=gradx%values(i)
-              ydiff%values(i)=grady%values(i)
-           end do
+           if (mype==0 .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:3),b=',gnorm,b
         end if
-!    Calculate new search direction
+
         do i=1,nclen
-           dirx%values(i)=-vprecond(i)*grady%values(i)+b*dirx%values(i)
-           diry%values(i)=-vprecond(i)*gradx%values(i)+b*diry%values(i)
+!    Calculate new search direction
+           ydiff%values(i)=vprecond(i)*grady%values(i)
+           dirx%values(i)=-ydiff%values(i)+b*dirx%values(i)
+           xdiff%values(i)=vprecond(i)*gradx%values(i)
+           diry%values(i)=-xdiff%values(i)+b*diry%values(i)
         end do
      else
 !    If previous solution available, transfer into local arrays.
@@ -625,8 +617,7 @@ subroutine pcgsoi()
 ! if (mype==0) write(6,*)'pcgsoi: Updating guess'
   if(iwrtinc<=0) call update_guess(sval,sbias)
 
-! cloud analysis  after iteration
-! if(jiter == miter .and. i_gsdcldanal_type==1) then
+! gsd cloud analysis  after iteration
   if(jiter == miter) then
     if(i_gsdcldanal_type==2) then
        call gsdcloudanalysis4nmmb(mype)

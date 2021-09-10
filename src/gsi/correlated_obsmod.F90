@@ -382,9 +382,7 @@ logical :: corr_obs
    ErrorCov%kreq   = kreq
    ErrorCov%kmut   = kmut
 
-   if (iamroot_) write(6,*) 'fname',fname
    inquire(file=trim(fname), exist=corr_obs)
-   if (iamroot_) write(6,*) 'fname',fname,corr_obs
 
    if (corr_obs) then
       lu = luavail()

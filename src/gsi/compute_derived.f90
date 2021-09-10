@@ -178,32 +178,6 @@ subroutine compute_derived(mype,init_pass)
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
      call die(myname,'invalid init_pass, ntguessig =',ntguessig)
 
-
-! Compute qsat regardless of presence of q in guess
-  iderivative=0
-  ice=.true.
-  do ii=1,nfldsig
-     call genqsat(ges_qsat(1,1,1,ii),ges_tsen(1,1,1,ii),ges_prsl(1,1,1,ii),lat2,lon2, &
-                  nsig,ice,iderivative)
-  enddo
-
-! If q in guess, check/fix q limits
-  do ii=1,nfldsig
-     call gsi_bundlegetpointer (gsi_metguess_bundle(ii),'q',ges_q,ier)
-     if (ier/=0) exit
-     if(ii == ntguessig) call q_diag(ii,mype)
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-! Limit q to be >= qmin
-!             ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
-! limit q to be <= ges_qsat
-              if(clip_supersaturation) ges_q(i,j,k) = min(ges_q(i,j,k),ges_qsat(i,j,k,ii))
-           end do
-        end do
-     end do
-  end do
-
 ! Load guess cw for use in inner loop
 ! Get pointer to cloud water mixing ratio
   it=ntguessig
@@ -289,6 +263,7 @@ subroutine compute_derived(mype,init_pass)
 
            if(allocated(ges_ps)) call getprs(ges_ps,ges_3dp)
 
+           it=ntguessig
            call calctends(mype,ges_teta(1,1,1,it),ges_3dp,gsi_metguess_bundle(it), &
                           gsi_xderivative_bundle(it),gsi_yderivative_bundle(it),&
                           gsi_tendency_bundle)
@@ -422,13 +397,14 @@ subroutine compute_derived(mype,init_pass)
     do ii=1,nfldsig
       call genqsat(ges_qsat(1,1,1,ii),ges_tsen(1,1,1,ii),ges_prsl(1,1,1,ii),lat2,lon2, &
              nsig,ice,iderivative)
+      if(ii == ntguessig) call q_diag(ii,mype)
     end do
   endif
 
   call final_vars_('guess')
 
 !??????????????????????????  need any of this????
-!! qoption 1:  use psuedo-RH
+!! qoption 1:  use pseudo-RH
 !  if(qoption==1)then
 !
 !

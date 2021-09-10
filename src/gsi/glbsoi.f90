@@ -316,8 +316,9 @@ subroutine glbsoi
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
-!    init_pass= jiter == jiterstart
-!    last_pass= jiter == jiterlast
+
+!  Init_pass and last_pass are only used for GMAO's code to use same set of
+!  observations.
      init_pass=.true.
      last_pass=.true.
      if (mype==0) write(6,'(a44,4i5)')'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &

@@ -260,20 +260,20 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
            if (trim(guess(ic))=='q') then
-               if(jiter == miter)then
+!              if(jiter == miter)then
                   call upd_positive_fldr3_(ptr3dges,ptr3dinc, qmin)
-               else
-                  ptr3dges = ptr3dges + ptr3dinc
-               end if
+!              else
+!                 ptr3dges = ptr3dges + ptr3dinc
+!              end if
                if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),ges_qsat(:,:,:,it))
                cycle
            endif
            if (trim(guess(ic))=='oz') then
-               if(jiter == miter)then
+!              if(jiter == miter)then
                   call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
-               else
-                  ptr3dges = ptr3dges + ptr3dinc
-               end if
+!              else
+!                 ptr3dges = ptr3dges + ptr3dinc
+!              end if
                cycle
            endif
            if (trim(guess(ic))=='w') then
@@ -401,22 +401,22 @@ subroutine update_guess(sval,sbias)
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr3dges,istatus)
-           if(jiter == miter)then
+!          if(jiter == miter)then
               call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
-           else
-              ptr3dges = ptr3dges + ptr3dinc
-           end if
+!          else
+!             ptr3dges = ptr3dges + ptr3dinc
+!          end if
            cycle
         endif
         id=getindex(svars2d,gases(ic))
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr2dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr2dges,istatus)
-           if(jiter == miter)then
+!          if(jiter == miter)then
               call upd_positive_fldr2_(ptr2dges,ptr2dinc,tgmin)
-           else
-              ptr2dges = ptr2dges + ptr2dinc
-           end if
+!          else
+!             ptr2dges = ptr2dges + ptr2dinc
+!          end if
            cycle
         endif
      enddo

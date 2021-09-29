@@ -159,25 +159,20 @@ subroutine intps_(pshead,rval,sval)
            rat_error2=psptr%raterr2
            error2=psptr%err2
          
+           t_pg=zero
+           cg_t=zero
+           ibb=0
+           ikk=0
+           var_jb=zero 
            if (vqc .and. nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                                 psptr%b  > tiny_r_kind) then
               t_pg=psptr%pg*varqc_iter
               cg_t=cg_term/psptr%b                           ! b is d in Enderson
-           else
-              t_pg=zero
-              cg_t=zero
-           endif
-           if (njqc .and. psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
+           else if (njqc .and. psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
               var_jb=psptr%jb
-           else
-              var_jb=zero 
-           endif
-           if(nvqc .and. psptr%ib >0) then
+           else if(nvqc .and. psptr%ib >0) then
               ibb=psptr%ib
               ikk=psptr%ik
-           else
-              ibb=0
-              ikk=0
            endif
            call vqc_int(error2,rat_error2,t_pg,cg_t,var_jb,ibb,ikk,val,grad) 
 

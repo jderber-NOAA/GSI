@@ -148,31 +148,27 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
            pen(1)=qptr%res*qptr%res*qptr%err2
         end if
 
-!  Modify penalty term if nonlinear QC
+        t_pg=zero
+        cg_t=zero
+        var_jb=zero
+        ibb=0
+        ikk=0
 
         if (vqc  .and. nlnqc_iter .and. qptr%pg > tiny_r_kind .and. &
                              qptr%b  > tiny_r_kind) then
+!  Modify penalty term if nonlinear QC
            t_pg=qptr%pg*varqc_iter
            cg_t=cg_term/qptr%b
-        else
-           t_pg=zero
-           cg_t=zero
-        endif
+        else if(njqc  .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
 
 !   for Dr. Jim purser' non liear quality control
-        if(njqc  .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
            var_jb =qptr%jb
-        else
-           var_jb=zero
-        endif
+        else if(nvqc .and. qptr%ib >0) then
 !  mix model VQC
-        if(nvqc .and. qptr%ib >0) then
            ibb=qptr%ib
            ikk=qptr%ik
-        else
-           ibb=0
-           ikk=0
         endif
+
         call vqc_stp(pen,nstep,t_pg,cg_t,var_jb,ibb,ikk)
 
         out(1) = out(1)+pen(1)*qptr%raterr2

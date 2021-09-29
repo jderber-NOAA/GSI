@@ -264,25 +264,20 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !          gradient of nonlinear operator
            error2=tptr%err2
            rat_err2=tptr%raterr2
+           ibb=0
+           ikk=0
+           t_pg=zero
+           cg_t=zero
+           var_jb=zero
            if (vqc .and. nlnqc_iter .and. tptr%pg > tiny_r_kind .and.  &
                                 tptr%b  > tiny_r_kind) then
               t_pg=tptr%pg*varqc_iter
               cg_t=cg_term/tptr%b
-           else
-              t_pg=zero
-              cg_t=zero
-           endif
-           if (njqc .and. tptr%jb > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
+           else if (njqc .and. tptr%jb > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
               var_jb=tptr%jb
-           else 
-              var_jb=zero
-           endif
-           if (nvqc .and. tptr%ib > tiny_r_kind ) then
+           else if (nvqc .and. tptr%ib > tiny_r_kind ) then
               ibb=tptr%ib
               ikk=tptr%ik
-           else
-              ibb=0
-              ikk=0
            endif
 
            call vqc_int(error2,rat_err2,t_pg,cg_t,var_jb,ibb,ikk,val,grad)

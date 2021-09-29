@@ -149,7 +149,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: oneobtest,maginnov,magoberr
-  use guess_grids, only: ges_lnprsl,hrdifsig,nfldsig,ges_tsen,ges_prsl,pbl_height
+  use guess_grids, only: ges_lnprsl,hrdifsig,nfldsig,ges_tsen,ges_prsl,pbl_height,ges_qsat
   use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
@@ -224,7 +224,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind) err_input,err_adjst,err_final
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
-  real(r_kind),dimension(lat2,lon2,nsig,nfldsig):: qg
   real(r_kind),dimension(lat2,lon2,nfldsig):: qg2m
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(34):: ptablq
@@ -412,12 +411,12 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   huge_error = huge_r_kind/r1e16
   scale=one
 
-  ice=.false.   ! get larger (in rh) q obs error for mixed and ice phases
+! ice=.false.   ! get larger (in rh) q obs error for mixed and ice phases
+  ice=.true.                                                                  
 
   iderivative=0
   do jj=1,nfldsig
-     call genqsat(qg(1,1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,nsig,ice,iderivative)
-     call genqsat(qg2m(1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,   1,ice,iderivative)
+     qg2m(:,:,jj)=ges_qsat(:,:,1,jj)
   end do
 
 
@@ -516,7 +515,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !    Scale errors by guess saturation q
  
-     call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+     call tintrp31(ges_qsat,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
           mype,nfldsig)
 
 ! Interpolate 2-m qs to obs locations/times
@@ -694,19 +693,16 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if(nvqc .and. ibeta(ikx) >0  ) ratio_errors=0.8_r_kind*ratio_errors
      if(luse(i))then
         val2     = val*val
+        cg_t=zero
+        cvar=zero
+        ibb=0
+        ikk=0
         if(vqc) then
            cg_t=cvar_b(ikx)
            cvar=cvar_pg(ikx)
-        else
-           cg_t=zero
-           cvar=zero
-        endif
-        if(nvqc) then
+        else if(nvqc) then
            ibb=ibeta(ikx)
            ikk=ikapa(ikx)
-        else
-           ibb=0
-           ikk=0
         endif
  
         call vqc_setup(val,ratio_errors,error,cvar,cg_t,ibb,ikk,&
@@ -861,7 +857,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! Interpolate guess moisture to observation location and time
            call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
                              hrdifsig,mype,nfldsig)
-           call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+           call tintrp31(ges_qsat,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
                        mype,nfldsig)
 
 !!! Set (i,j,k) indices of guess gridpoint that bound obs location

@@ -380,6 +380,7 @@ subroutine compute_derived(mype,init_pass)
 
   if(allocated(ges_tv).and.allocated(ges_ps)) then
 
+     if(mype == 0)write(6,*) ' before genqsat ',init_pass
 ! Compute saturation specific humidity.   
      iderivative = 0
      if(qoption == 1)then

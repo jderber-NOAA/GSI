@@ -937,20 +937,17 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if(nvqc .and. ibeta(ikx) >0  ) ratio_errors=0.8_r_kind*ratio_errors
      if(luse(i))then
         val2     = val*val
+        ibb=0
+        ikk=0
+        cg_t=zero
+        cvar=zero
         if(vqc) then
            cg_t=cvar_b(ikx)
            cvar=cvar_pg(ikx)
-        else
-           cg_t=zero
-           cvar=zero
-        endif
-        if(nvqc) then
+        else if(nvqc) then
  
            ibb=ibeta(ikx)
            ikk=ikapa(ikx)
-        else
-           ibb=0
-           ikk=0
         endif
    
        

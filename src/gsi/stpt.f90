@@ -255,41 +255,35 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
            pen(kk) = tt(kk)*tt(kk)*tptr%err2
         end do
 
-!  Modify penalty term if nonlinear QC
-! EC VQc
+        var_jb=zero
+        t_pg=zero
+        cg_t=zero
+        ibb=0
+        ikk=0
         if (vqc .and. nlnqc_iter .and. tptr%pg > tiny_r_kind &
             .and. tptr%b >tiny_r_kind) then
-           t_pg=tptr%pg*varqc_iter
-           cg_t=cg_term/tptr%b
-        else
-           t_pg=zero
-           cg_t=zero
-        endif
+!  Modify penalty term if nonlinear QC
+! EC VQc
+          t_pg=tptr%pg*varqc_iter
+          cg_t=cg_term/tptr%b
+        else if(njqc .and. tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
+!  Jim Purser's non linear QC scheme
+          var_jb =tptr%jb
 
-
-!  Jim Purse's non linear QC scheme
-        if(njqc .and. tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
-           var_jb =tptr%jb
-        else
-           var_jb=zero
-        endif
+        else if(nvqc .and. tptr%ib >0) then
         
 !  mix model VQC
-       if(nvqc .and. tptr%ib >0) then
           ibb=tptr%ib
           ikk=tptr%ik
-       else
-          ibb=0
-          ikk=0
-       endif
+        endif
 
 
-       call vqc_stp(pen,nstep,t_pg,cg_t,var_jb,ibb,ikk)
+        call vqc_stp(pen,nstep,t_pg,cg_t,var_jb,ibb,ikk)
 
-       out(1) = out(1)+pen(1)*tptr%raterr2
-       do kk=2,nstep
-          out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
-       end do
+        out(1) = out(1)+pen(1)*tptr%raterr2
+        do kk=2,nstep
+           out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
+        end do
 
      endif
      tptr => tNode_nextcast(tptr)

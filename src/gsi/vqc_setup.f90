@@ -100,7 +100,7 @@
            if(vals ==zero) then
               wgt=one
            else
-               wgt=g_nvqc/exp_arg
+              wgt=g_nvqc/exp_arg
            endif 
         else
            term = exp_arg

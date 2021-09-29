@@ -534,19 +534,16 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 
 !    Compute penalty terms (linear & nonlinear qc).
         val2     = val*val
+        cg_t=zero
+        cvar=zero
+        ibb=0
+        ikk=0
         if(vqc) then
            cg_t=cvar_b(ikx)
            cvar=cvar_pg(ikx)
-        else
-           cg_t=zero
-           cvar=zero
-        endif
-        if(nvqc) then
+        else if(nvqc) then
            ibb=ibeta(ikx)
            ikk=ikapa(ikx)
-        else
-           ibb=0
-           ikk=0
         endif
 
         call vqc_setup(val,ratio_errors,error,cvar,cg_t,ibb,ikk,&

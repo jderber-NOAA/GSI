@@ -1224,19 +1224,16 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if(luse(i))then
         val      = valu*valu+valv*valv
         vals=sqrt(val)
+        cg_t=zero
+        cvar=zero
+        ibb=0
+        ikk=0
         if(vqc) then
            cg_t=cvar_b(ikx)
            cvar=cvar_pg(ikx)
-        else
-           cg_t=zero
-           cvar=zero
-        endif
-        if(nvqc) then
+        else if(nvqc) then
            ibb=ibeta(ikx)
            ikk=ikapa(ikx)
-        else
-           ibb=0
-           ikk=0
         endif
         call vqc_setup(vals,ratio_errors,error,cvar,&
                       cg_t,ibb,ikk,var_jb,rat_err2,wgt,valqc)

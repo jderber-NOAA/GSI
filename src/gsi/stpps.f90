@@ -139,31 +139,26 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
         end if
 
     
-!  Modify penalty term if nonlinear QC
-! EC VQC
+        t_pg=zero
+        cg_t=zero
+        var_jb=zero
+        ibb=0
+        ikk=0
 
         if (vqc .and. nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                              psptr%b  > tiny_r_kind) then
+!  Modify penalty term if nonlinear QC
+! EC VQC
            t_pg=psptr%pg*varqc_iter
            cg_t=cg_term/psptr%b
-        else
-           t_pg=zero
-           cg_t=zero
-        endif
+        else if(njqc  .and. psptr%jb > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
 
 !   for Dr. Jim purser' non liear quality control
-        if(njqc  .and. psptr%jb > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
            var_jb =psptr%jb
-        else
-           var_jb=zero
-        endif
+        else if(nvqc .and. psptr%ib >0) then
 !  mix model VQC
-        if(nvqc .and. psptr%ib >0) then
            ibb=psptr%ib
            ikk=psptr%ik
-        else
-           ibb=0
-           ikk=0
         endif
       
 

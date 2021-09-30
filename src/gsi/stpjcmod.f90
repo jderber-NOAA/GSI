@@ -242,7 +242,7 @@ subroutine stplimqc(rval,sval,sges,out,nstep,itbin,cldtype)
   endif
   if (mype==0) write(6,*)'stplimqc: factqc   = ', factqc
   if (mype==0) write(6,*)'stplimqc: ier ier1 = ', ier, ier1 
-  if ( factqc==0 ) return
+  if ( factqc <= zero) return
   if ( ier/=0 .or. ier1/=0 ) return
 
 ! Loop over interior of subdomain

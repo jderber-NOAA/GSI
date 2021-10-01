@@ -178,7 +178,6 @@ subroutine compute_derived(mype,init_pass)
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
      call die(myname,'invalid init_pass, ntguessig =',ntguessig)
 
-
 ! Get required indexes from control vector names
   nrf3_q=getindex(cvars3d,'q')
   iq_loc=getindex(nrf_var,'q')

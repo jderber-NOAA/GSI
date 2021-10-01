@@ -296,6 +296,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   outpen = zero
   nsteptot=0
   istp_use=0
+  kprt=3
   pjcalc=.false.
   pj=zero_quad
 
@@ -871,7 +872,6 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
         exit stepsize
      end if
   end do stepsize
-  kprt=3
   if(kprt >= 2 .and. iter == 0)then
      call mpl_allreduce(ipen,nobs_bins,pj)
      if(mype == 0)call prnt_j(pj,n0,ipen,kprt)

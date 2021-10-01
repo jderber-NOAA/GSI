@@ -857,7 +857,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! Interpolate guess moisture to observation location and time
            call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
                              hrdifsig,mype,nfldsig)
-           call tintrp31(gen_qsat,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+           call tintrp31(ges_qsat,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
                        mype,nfldsig)
 
 !!! Set (i,j,k) indices of guess gridpoint that bound obs location

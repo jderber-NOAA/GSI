@@ -162,7 +162,8 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
            qsat(i,j,k) = max(qmin,qsat(i,j,k))
 
            if(iderivative > 0)then
-            if(es <= esmax .and. iderivative == 2 .and. qsat(i,j,k) > qmin )then
+!           if(es <= esmax .and. iderivative == 2 .and. qsat(i,j,k) > qmin )then
+            if(es <= esmax .and. iderivative == 2)then
               idpupdate=.true.
               idtupdate=.true.
 

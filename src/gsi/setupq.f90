@@ -212,7 +212,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! Declare local variables  
   
   real(r_double) rstation_id
-  real(r_kind) qob,qges,qsges,q2mges,q2mges_water
+  real(r_kind) qob,qges,qsges,qsfullges,q2mges,q2mges_water
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,rmaxerr,error
   real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact,ramp
   real(r_kind) psges,sfcchk,ddiff,errorx
@@ -224,6 +224,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind) err_input,err_adjst,err_final
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
+  real(r_kind),dimension(lat2,lon2,nsig,nfldsig):: qg
   real(r_kind),dimension(lat2,lon2,nfldsig):: qg2m
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(34):: ptablq
@@ -411,9 +412,11 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   huge_error = huge_r_kind/r1e16
   scale=one
 
+  ice=.false.   ! get larger (in rh) q obs error for mixed and ice phases
   iderivative=0
   do jj=1,nfldsig
-     qg2m(:,:,jj)=ges_qsat(:,:,1,jj)
+     call genqsat(qg(1,1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,nsig,ice,iderivative)
+     qg2m(:,:,jj)=qg(:,:,1,jj)
   end do
 
 
@@ -510,9 +513,17 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if( dpres>=nsig+1)dprpx=1.e6_r_kind
      if((itype > 179 .and. itype < 186) .or. itype == 199) dpres=one
 
+     call tintrp31(ges_qsat,qsfullges,dlat,dlon,dpres,dtime,hrdifsig,&
+          mype,nfldsig)
+
+!    Load obs error and value into local variables
+     obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
+     qob = data(iqob,i) 
+     qob = max(zero,min(qsfullges,qob))
+
 !    Scale errors by guess saturation q
  
-     call tintrp31(ges_qsat,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+     call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
           mype,nfldsig)
 
 ! Interpolate 2-m qs to obs locations/times
@@ -520,11 +531,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
             .and.  .not.twodvar_regional)then
         call tintrp2a11(qg2m,qsges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
      endif
-
-!    Load obs error and value into local variables
-     obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
-     qob = data(iqob,i) 
-     qob = max(zero,min(qsges,qob))
 
      rmaxerr=rmaxerr*qsges
      rmaxerr=max(small2,rmaxerr)
@@ -719,7 +725,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         end if
 ! Loop over pressure level groupings and obs to accumulate statistics
 ! as a function of observation type.
-        ress  = scale*r100*ddiff/qsges
+        ress  = scale*r100*ddiff/qsfullges
         ressw2= ress*ress
         nn=1
         if (.not. muse(i)) then
@@ -1113,7 +1119,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis
         rdiagbuf(19,ii) = qob-qges           ! obs-ges w/o bias correction (future slot)
 
-        rdiagbuf(20,ii) = qsges              ! guess saturation specific humidity
+        rdiagbuf(20,ii) = qsfullges          ! guess saturation specific humidity
         rdiagbuf(21,ii) = 1e+10_r_single     ! spread (filled in by EnKF)
 
         ioff=ioff0
@@ -1189,7 +1195,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbufp(18,iip) = ddiff              ! obs-ges used in analysis
         rdiagbufp(19,iip) = ddiff              !qob-qges           ! obs-ges w/o bias correction (future slot)
 
-        rdiagbufp(20,iip) = qsges              ! guess saturation specific humidity
+        rdiagbufp(20,iip) = qsfullges              ! guess saturation specific humidity
         rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
 
         ioff=ioff0
@@ -1232,7 +1238,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation",                   sngl(data(iqob,i)))
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)       )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(qob-qges)    )
-           call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsges)       )
+           call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsfullges)   )
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
@@ -1294,7 +1300,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation",                   sngl(data(iqob,i)))
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)       )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(ddiff)       )
-           call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsges)       )
+           call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsfullges)   )
 
            if (save_jacobian) then
              call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)

@@ -89,7 +89,7 @@ subroutine compute_derived(mype,init_pass)
   use kinds, only: r_kind,i_kind
   use jfunc, only: jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,clip_supersaturation
+       tendsflag
   use control_vectors, only: cvars3d
   use control_vectors, only: nrf_var
   use control_vectors, only: an_amp0

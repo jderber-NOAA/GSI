@@ -155,7 +155,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use constants, only: huge_single,wgtlim,three
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,r0_01
   use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1,njqc,vqc,nvqc
-  use jfunc, only: jiter,last,jiterstart,miter
+  use jfunc, only: jiter,last,jiterstart,miter,superfact
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: ibeta,ikapa
   use convinfo, only: icsubtype
@@ -519,7 +519,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !    Load obs error and value into local variables
      obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
      qob = data(iqob,i) 
-     qob = max(zero,min(qsfullges,qob))
+     qob = max(zero,min(superfact*qsfullges,qob))
 
 !    Scale errors by guess saturation q
  

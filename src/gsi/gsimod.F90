@@ -93,7 +93,7 @@
       pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check
   use qcmod, only: troflg,lat_c,nrand
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
-  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
+  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,superfact, &
      factql,factqi,factqr,factqs,factqg, &  
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
@@ -489,6 +489,7 @@
 !     gencode  - source generation code
 !     factqmin - weighting factor for negative moisture constraint
 !     factqmax - weighting factor for supersaturated moisture constraint
+!     superfact- amount of supersaturation allowed 1.01 = 1% supersaturation
 !     clip_supersaturation - flag to remove supersaturation during each outer loop default=.false.
 !     deltim   - model timestep
 !     dtphys   - physics timestep
@@ -686,7 +687,7 @@
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
-  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation, &
+  namelist/setup/gencode,factqmin,factqmax,superfact,clip_supersaturation, &
        factql,factqi,factqr,factqs,factqg, &     
        factv,factl,factp,factg,factw10m,facthowv,factcldch,R_option,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
@@ -1941,6 +1942,7 @@
      dmesh=one
      factqmin=zero
      factqmax=zero
+     superfact=1._r_kind
      if (hilbert_curve) then
         write(6,*) 'Disabling hilbert_curve cross validation when oneobtest=.true.'
         hilbert_curve=.false.

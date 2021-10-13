@@ -407,7 +407,7 @@ contains
                 varA(j,i)=r10
              else
                 varA(j,i)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
-                if (varA(j,i)>r10) varA(j,i)=r10
+                varA(j,i)= min(r10,varA(j,i))
              end if
              varprd(ii)=varA(j,i)
           end do
@@ -436,17 +436,13 @@ contains
                 else
                    if (aircraft_t_bc .and. j==2) then
                       varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
+                      varA_t(j,i)=min(varA_t(j,i),1.0e-3_r_kind)
                    else if (aircraft_t_bc .and. j==3) then
                       varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
+                      varA_t(j,i)=min(varA_t(j,i),1.0e-4_r_kind)
                    else
                       varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
-                   end if
-                   if (aircraft_t_bc .and. j==2) then
-                      if (varA_t(j,i)>1.0e-3_r_kind) varA_t(j,i)=1.0e-3_r_kind
-                   else if (aircraft_t_bc .and. j==3) then
-                      if (varA_t(j,i)>1.0e-4_r_kind) varA_t(j,i)=1.0e-4_r_kind
-                   else
-                      if (varA_t(j,i)>one_tenth) varA_t(j,i)=one_tenth
+                      varA_t(j,i)=min(varA_t(j,i),one_tenth)
                    end if
                 end if
                 varprd(ii)=varA_t(j,i)
@@ -510,7 +506,7 @@ contains
                  if (rstats(j,i)>zero) then
                     varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
                  else
-                    varA(j,i)=10000.0_r_kind
+                    if(varA(j,i) <= zero)varA(j,i)=10000.0_r_kind
                  end if
               end if
            end do
@@ -526,12 +522,18 @@ contains
                 ii=ii+1
                 jj=jj+1
 
-                if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
-                if (aircraft_t_bc) obs_count = ostats_t(1,i)
+                obs_count=0
+                if (aircraft_t_bc_pof) then
+                   obs_count = ostats_t(j,i)
+                else if (aircraft_t_bc) then
+                   obs_count = ostats_t(1,i)
+                end if
 
                 if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>3.0_r_kind) then
                    varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
+                else
+                   if(varA_t(j,i) <= zero)varA_t(j,i)=10000.0_r_kind
                 end if
              end do
           end do

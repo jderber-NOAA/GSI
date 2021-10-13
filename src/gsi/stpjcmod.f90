@@ -143,7 +143,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
               if(q < zero)then
                  outmin(1)=outmin(1)+(factqmin*wgtfactlats(ii))*q*q/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
               else
-                 if(q > ges_qsat(i,j,k,itbin))then
+                 if(q > superfact*ges_qsat(i,j,k,itbin))then
                     outmax(1)=outmax(1)+(factqmax*wgtfactlats(ii))*(q-superfact*ges_qsat(i,j,k,itbin))**2 &
                                 /ges_qsat(i,j,k,itbin)**2
                  end if

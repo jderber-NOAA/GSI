@@ -83,9 +83,9 @@ subroutine evalqlim(sval,pbc,rval)
            endif
 !          Compute penalty for excess q
            if (q>qsatg(i,j,k)) then
-              term=(factqmax*wgtfactlats(ii))*(q-superfact*qsatg(i,j,k))&
-                   /(qsatg(i,j,k)*superfact)**2
-              zbc(2) = zbc(2) + term*(q-superfact*qsatg(i,j,k))
+              term=(factqmax*wgtfactlats(ii))*((q-superfact*qsatg(i,j,k))&
+                   /qsatg(i,j,k))**2
+              zbc(2) = zbc(2) + term
 !             Adjoint
               rq(i,j,k) = rq(i,j,k) + term
            endif

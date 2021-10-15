@@ -376,8 +376,8 @@ subroutine pcgsoi()
      b=zero
      if (.not. restart .or. iter > 0) then
         if (iter > 1 .or. .not. read_success)then
-           if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
-           if (b<zero .or. b>10.0_r_kind) then
+           if (gsave>1.e-16_r_kind) b=gnorm(2)/gsave
+           if (b<=zero .or. b>10.0_r_kind) then
               if (mype==0) then
                  if (iout_6) write(6,105) gnorm(2),gsave,b
                  write(iout_iter,105) gnorm(2),gsave,b
@@ -403,6 +403,7 @@ subroutine pcgsoi()
         call read_guess_solution(diry,mype,read_success)
 !       Multiply by background error
         call multb(diry,dirx)
+        restart=.false.
      endif
      gsave=gnorm(3)
   

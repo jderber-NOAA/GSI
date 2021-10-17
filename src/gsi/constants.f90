@@ -259,8 +259,7 @@ module constants
                                      ! the nonlinear qc data "count"
 
 ! Minimum values for water vapor, cloud water mixing ratio, and trace gases
-! real(r_kind),parameter:: qmin   = 1.e-07_r_kind   ! lower bound on ges_q
-  real(r_kind),parameter:: qmin   = 1.e-08_r_kind   ! lower bound on ges_q
+  real(r_kind),parameter:: qmin   = 1.e-07_r_kind   ! lower bound on ges_q
   real(r_kind),parameter:: qcmin  = 0.0_r_kind      ! lower bound on ges_cw
   real(r_kind),parameter:: tgmin  = 1.e-15_r_kind   ! lower bound on trace gases
 

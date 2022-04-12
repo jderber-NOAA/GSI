@@ -194,7 +194,7 @@ public isazi_ang2           ! = 37 index of solar azimuth angle (degrees)
   integer(i_kind),save :: n_clouds_fwd_wk           ! number of clouds considered
   integer(i_kind),save :: n_clouds_jac_wk           ! number of clouds considered
   integer(i_kind),save :: n_ghg              ! number of green-house gases
-  integer(i_kind),save :: itv,iqv,ioz,ius,ivs,isst
+  integer(i_kind),save :: itsen,iqv,ioz,ius,ivs,isst
   integer(i_kind),save :: indx_p25, indx_dust1, indx_dust2
   logical        ,save :: lwind
   logical        ,save :: cld_sea_only_wk
@@ -364,10 +364,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   ius=-1
   ioz=-1
   iqv=-1
-  itv=-1
+  itsen=-1
 ! Get indexes of variables composing the jacobian
-  indx =getindex(radjacnames,'tv')
-  if(indx>0) itv=radjacindxs(indx)
+  indx =getindex(radjacnames,'tsen')
+  if(indx>0) itsen=radjacindxs(indx)
   indx =getindex(radjacnames,'q' )
   if(indx>0) iqv=radjacindxs(indx)
   indx =getindex(radjacnames,'oz')
@@ -1132,7 +1132,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(5)     :: tmp_time
   real(r_kind),dimension(0:3)   :: dtskin
   real(r_kind),dimension(msig)  :: c6
-  real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
+  real(r_kind),dimension(nsig)  :: c3
   real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj
   real(r_kind),dimension(nsig) :: rho_air   ! density of air (kg/m3)
   real(r_kind),dimension(nsig) :: cf_calc   ! GFDL cloud fraction calculation
@@ -1682,10 +1682,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      else
         q(k)  = qsmall
      endif
-     c2(k)=one/(one+fv*q(k))
-     c3(k)=one/(one-q(k))
-     c4(k)=fv*h(k)*c2(k)
-     c5(k)=r1000*c3(k)*c3(k)
+     c3(k)=r1000/(one-q(k))
      qmix(k)=q(k)*c3(k)  !conver specific humidity to mixing ratio
 ! Space-time interpolation of ozone(poz)
      if (iozs==0) then
@@ -1950,7 +1947,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
      kk2 = klevel(kk)
      atmosphere(1)%temperature(k) = h(kk2)
-     atmosphere(1)%absorber(k,1)  = r1000*q(kk2)*c3(kk2)
+     atmosphere(1)%absorber(k,1)  = q(kk2)*c3(kk2)
      if(iozs==0) then
         atmosphere(1)%absorber(k,2)  = poz(kk2)
      else
@@ -2225,19 +2222,19 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        end do ! <nsig>
 
 !  Deflate moisture jacobian above the tropopause.
-       if (itv>=0) then
+       if (itsen>=0) then
           do k=1,nsig
-             jacobian(itv+k,i)=temp(k,i)*c2(k)               ! virtual temperature sensitivity
+             jacobian(itsen+k,i)=temp(k,i)               ! sensible temperature sensitivity
           end do ! <nsig>
        endif
        if (iqv>=0) then
           m=ich(i)
           do k=1,nsig
-             jacobian(iqv+k,i)=c5(k)*wmix(k,i)-c4(k)*temp(k,i)        ! moisture sensitivity
-             if (prsi(k) < trop5) then
-                term = (prsi(k)-trop5)/(trop5-prsi(nsig))
-                jacobian(iqv+k,i) = exp(ifactq(m)*term)*jacobian(iqv+k,i)
-             endif
+             jacobian(iqv+k,i)=c3(k)*wmix(k,i)        ! moisture sensitivity
+!            if (prsi(k) < trop5) then
+!               term = (prsi(k)-trop5)/(trop5-prsi(nsig))
+!               jacobian(iqv+k,i) = exp(ifactq(m)*term)*jacobian(iqv+k,i)
+!            endif
           end do ! <nsig>
        endif
        if (ioz>=0) then

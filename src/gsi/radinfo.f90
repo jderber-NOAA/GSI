@@ -440,7 +440,11 @@ contains
        ie=ib+n_meteo-1
        do ii=ib,ie
           jj=jj+1
-          radjacnames(ii) = trim(meteo_names(jj))
+          if(trim(meteo_names(jj)) == 'tv') then
+            radjacnames(ii)='tsen'
+          else
+            radjacnames(ii) = trim(meteo_names(jj))
+          end if
           radjacindxs(ii) = mxlvs
        enddo
     endif

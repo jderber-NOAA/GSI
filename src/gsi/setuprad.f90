@@ -1796,6 +1796,7 @@ contains
                  if(jacobian(iqs+k,i)*qs(k) > 1000._r_kind)then
                     jacobian=zero
                     varinv = zero
+                    if(luse(n))aivals(14,is) = aivals(14,is) + one
                     exit chanloop
                  end if
                 end do

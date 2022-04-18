@@ -332,7 +332,7 @@ contains
   integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii,ijacob
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret
-  integer(i_kind) ioz,ius,ivs,iwrmype
+  integer(i_kind) ioz,ius,ivs,iqs,iwrmype
   integer(i_kind) iversion_radiag, istatus
   integer(i_kind) cor_opt,iinstr,chan_count
   character(len=80) covtype
@@ -393,7 +393,7 @@ contains
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
-  real(r_kind),dimension(nsig):: qvp,tvp
+  real(r_kind),dimension(nsig):: qvp,tvp,qs
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
@@ -605,6 +605,10 @@ contains
      ius=radjacindxs(ius)
      ivs=radjacindxs(ivs)
   endif
+  iqs =getindex(radjacnames,'q')
+  if(iqs>0)then
+     iqs=radjacindxs(iqs)
+  end if
 
 ! Initialize ozone jacobian flags to .false. (retain ozone jacobian)
   zero_irjaco3_pole = .false.
@@ -891,7 +895,7 @@ contains
         tcc=zero
         if (radmod%lcloud_fwd) then
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status,tsim_clr=tsim_clr,tcc=tcc, & 
@@ -902,7 +906,7 @@ contains
              data_s(ilzen_ang:iscan_ang, n) = data_s(ilzen_ang2:iscan_ang2, n)
              data_s(iszen_ang:isazi_ang, n) = data_s(iszen_ang2:isazi_ang2, n)
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-                tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
                  tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status,tsim_clr2)
@@ -923,7 +927,7 @@ contains
           endif
         else
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status)
@@ -933,7 +937,7 @@ contains
              data_s(ilzen_ang:iscan_ang, n) = data_s(ilzen_ang2:iscan_ang2, n)
              data_s(iszen_ang:isazi_ang, n) = data_s(iszen_ang2:isazi_ang2, n)
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-                tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
                  tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status)
@@ -1785,6 +1789,20 @@ contains
         icc = 0
         iccm= 0
 
+        if(obstype == 'cris' .or. obstype=='cris-fsr' .or. obstype == 'iasi')then
+           chanloop: do i = 1,nchanl
+              if(varinv(i) > tiny_r_kind)then
+                do k = 1,nsig
+                 if(jacobian(iqs+k,i)*qs(k) > 1000._r_kind)then
+                    jacobian=zero
+                    varinv = zero
+                    exit chanloop
+                 end if
+                end do
+              end if
+!       End loop over channels.
+           end do chanloop
+        end if
         do i = 1,nchanl
 
 !          Only process observations to be assimilated
@@ -1976,13 +1994,11 @@ contains
                  my_head%rsqrtinv(1:chan_count)=rsqrtinv(1:chan_count)
                  my_head%use_corr_obs=.true.
               end if
-              if(iinstr/=-1)then
-                if(allocated(rsqrtinv)) deallocate(rsqrtinv)
-                if(allocated(rinvdiag)) deallocate(rinvdiag)
-              endif
 
               my_head => null()
            end if ! icc
+           if(allocated(rsqrtinv)) deallocate(rsqrtinv)
+           if(allocated(rinvdiag)) deallocate(rinvdiag)
         endif ! (in_curbin)
 
 !       Link obs to diagnostics structure

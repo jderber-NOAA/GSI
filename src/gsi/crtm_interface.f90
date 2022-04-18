@@ -953,7 +953,7 @@ subroutine destroy_crtm
   return
 end subroutine destroy_crtm
 subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
-                   h,q,clw_guess,ciw_guess,rain_guess,snow_guess,prsl,prsi, &
+                   h,q,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsl,prsi, &
                    trop5,tzbgr,dtsavg,sfc_speed,&
                    tsim,emissivity,ptau5,ts, &
                    emissivity_k,temp,wmix,jacobian,error_status,tsim_clr,tcc, & 
@@ -1062,7 +1062,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind)                       ,intent(in   ) :: nchanl,nreal
   integer(i_kind),dimension(nchanl)     ,intent(in   ) :: ich
   real(r_kind)                          ,intent(  out) :: trop5,tzbgr
-  real(r_kind),dimension(nsig)          ,intent(  out) :: h,q,prsl
+  real(r_kind),dimension(nsig)          ,intent(  out) :: h,q,prsl,qs
   real(r_kind),dimension(nsig+1)        ,intent(  out) :: prsi
   real(r_kind)                          ,intent(  out) :: sfc_speed,dtsavg
   real(r_kind),dimension(nchanl+nreal)  ,intent(in   ) :: data_s
@@ -1128,7 +1128,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig)  :: prsl_rtm
   real(r_kind),dimension(msig)  :: auxq,auxdp
   real(r_kind),dimension(nsig)  :: poz
-  real(r_kind),dimension(nsig)  :: rh,qs
+  real(r_kind),dimension(nsig)  :: rh
   real(r_kind),dimension(5)     :: tmp_time
   real(r_kind),dimension(0:3)   :: dtskin
   real(r_kind),dimension(msig)  :: c6
@@ -2221,7 +2221,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           if (abs(temp(k,i))<sqrt_tiny_r_kind) temp(k,i)=sign(sqrt_tiny_r_kind,temp(k,i))
        end do ! <nsig>
 
-!  Deflate moisture jacobian above the tropopause.
        if (itsen>=0) then
           do k=1,nsig
              jacobian(itsen+k,i)=temp(k,i)               ! sensible temperature sensitivity
@@ -2230,7 +2229,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        if (iqv>=0) then
           m=ich(i)
           do k=1,nsig
-             jacobian(iqv+k,i)=c3(k)*wmix(k,i)        ! moisture sensitivity
+             if(obstype == 'cris'  .or. obstype == 'cris-fsr' .or. obstype == 'iasi')then
+                jacobian(iqv+k,i)=.01_r_kind*c3(k)*wmix(k,i)        ! moisture sensitivity
+             else
+                jacobian(iqv+k,i)=c3(k)*wmix(k,i)        ! moisture sensitivity
+             end if
+!  Deflate moisture jacobian above the tropopause.
 !            if (prsi(k) < trop5) then
 !               term = (prsi(k)-trop5)/(trop5-prsi(nsig))
 !               jacobian(iqv+k,i) = exp(ifactq(m)*term)*jacobian(iqv+k,i)

@@ -2229,11 +2229,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        if (iqv>=0) then
           m=ich(i)
           do k=1,nsig
-             if(obstype == 'cris'  .or. obstype == 'cris-fsr' .or. obstype == 'iasi')then
-                jacobian(iqv+k,i)=.01_r_kind*c3(k)*wmix(k,i)        ! moisture sensitivity
-             else
+!            if(obstype == 'cris'  .or. obstype == 'cris-fsr' .or. obstype == 'iasi')then
+!               jacobian(iqv+k,i)=.01_r_kind*c3(k)*wmix(k,i)        ! moisture sensitivity
+!            else
                 jacobian(iqv+k,i)=c3(k)*wmix(k,i)        ! moisture sensitivity
-             end if
+!            end if
 !  Deflate moisture jacobian above the tropopause.
 !            if (prsi(k) < trop5) then
 !               term = (prsi(k)-trop5)/(trop5-prsi(nsig))

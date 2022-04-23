@@ -2697,6 +2697,7 @@ subroutine sqrt_beta_s_mult_bundle(grady)
      do ic3=1,nc3d
         ! check for ozone and skip if oz_univ_static = true
         if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
+        if ( trim(StrUpCase(cvars3d(ic3))) == 'Q' ) cycle
         do k=1,nsig
            do i=1,lat2
               grady%r3(ipc3d(ic3))%q(i,j,k) = sqrt_beta_s(k)*grady%r3(ipc3d(ic3))%q(i,j,k)

@@ -381,7 +381,7 @@ contains
   real(r_kind),dimension(npred+2):: predterms
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
-  real(r_kind),dimension(nchanl):: err2,tbc0,tb_obs0,raterr2,wgtjo
+  real(r_kind),dimension(nchanl):: err2,tbc0,tbc3,tb_obs3,tb_obs0,raterr2,wgtjo
   real(r_kind),dimension(nchanl):: varinv0
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
@@ -1602,6 +1602,7 @@ contains
             
         end if ObsQCs
 
+
 !       Done with sensor qc blocks.  Now make final qc decisions.
 
 !       Apply gross check to observations.  Toss obs failing test.
@@ -1757,6 +1758,49 @@ contains
            endif !lsingleradob
 
         enddo
+! extra quality control
+!       if(obstype == 'cris' .or. obstype=='cris-fsr' .or. obstype == 'iasi')then
+!          tbc3=tbc
+!          tb_obs3=tb_obs
+!          raterr2 = zero
+!          err2 = one/error0**2
+!          wgtjo= varinv     ! weight used in Jo term
+!          account_for_corr_obs = .false.
+!          jacobian2=jacobian
+!          if (l_may_be_passive .and. .not. retrieval .and. iinstr /= -1) then
+!            iii=0
+!            do ii=1,nchanl
+!               m=ich(ii)
+!               if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+!                 iii=iii+1
+!                 raterr2(ii)=error0(ii)**2*varinv(ii)
+!               endif
+!            enddo
+!            if(iii>0)then
+!              chan_count=(iii*(iii+1))/2
+!              allocate(rsqrtinv(chan_count))
+!              allocate(rinvdiag(iii))
+!              rsqrtinv=zero
+!              rinvdiag=zero
+!              account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv,&
+!                                                 tbc3,tb_obs3,err2,raterr2,wgtjo,jacobian2,cor_opt,&
+!                                                 iii,rsqrtinv,rinvdiag)
+!              varinv = wgtjo
+!              deallocate(rsqrtinv,rinvdiag)
+!            endif
+!          endif
+!          chanloop: do i = 1,nchanl
+!             if(varinv(i) > tiny_r_kind)then
+!               do k = 1,nsig
+!                if(jacobian(iqs+k,i)*qs(k) > 1000._r_kind)then
+!                   varinv(i) = zero
+!                   if(luse(n))aivals(14,is) = aivals(14,is) + one
+!                end if
+!               end do
+!             end if
+!       End loop over channels.
+!          end do chanloop
+!       end if
 
         tbc0=tbc
         tb_obs0=tb_obs
@@ -1789,21 +1833,6 @@ contains
         icc = 0
         iccm= 0
 
-        if(obstype == 'cris' .or. obstype=='cris-fsr' .or. obstype == 'iasi')then
-           chanloop: do i = 1,nchanl
-              if(varinv(i) > tiny_r_kind)then
-                do k = 1,nsig
-                 if(jacobian(iqs+k,i)*qs(k) > 1000._r_kind)then
-                    jacobian=zero
-                    varinv = zero
-                    if(luse(n))aivals(14,is) = aivals(14,is) + one
-                    exit chanloop
-                 end if
-                end do
-              end if
-!       End loop over channels.
-           end do chanloop
-        end if
         do i = 1,nchanl
 
 !          Only process observations to be assimilated

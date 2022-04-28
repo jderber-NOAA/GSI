@@ -1762,6 +1762,7 @@ contains
         if(obstype == 'cris' .or. obstype=='cris-fsr' .or. obstype == 'iasi')then
            tbc3=tbc
            tb_obs3=tb_obs
+           varinv0 = varinv
            raterr2 = zero
            err2 = one/error0**2
            wgtjo= varinv     ! weight used in Jo term
@@ -1791,14 +1792,15 @@ contains
            endif
            chanloop: do i = 1,nchanl
               if(varinv(i) > tiny_r_kind)then
-                do k = 1,nsig
+                levelloop:do k = 1,nsig
                  if(jacobian(iqs+k,i)*qs(k) > 1000._r_kind)then
-                    varinv(i) = zero
+                    varinv0(i) = zero
                     if(luse(n))aivals(14,is) = aivals(14,is) + one
+                    exit levelloop
                  end if
-                end do
+                end do levelloop
               end if
-        End loop over channels.
+              varinv(i)=varinv0(i)
            end do chanloop
         end if
 

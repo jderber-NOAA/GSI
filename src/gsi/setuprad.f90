@@ -1793,7 +1793,7 @@ contains
            chanloop: do i = 1,nchanl
               if(varinv(i) > tiny_r_kind)then
                 levelloop:do k = 1,nsig
-                 if(jacobian(iqs+k,i)*qs(k) > 100._r_kind)then
+                 if(jacobian(iqs+k,i)*qs(k) > 400._r_kind)then
                     varinv0(i) = zero
                     if(luse(n))aivals(14,is) = aivals(14,is) + one
                     exit levelloop

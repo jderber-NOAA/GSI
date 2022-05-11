@@ -55,7 +55,7 @@ subroutine get_gefs_ensperts_dualres
   use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
   use mpimod, only: mpi_comm_world,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
+  use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens,alimensq
   use hybrid_ensemble_parameters, only: beta_s0,beta_s,beta_e
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -304,8 +304,8 @@ subroutine get_gefs_ensperts_dualres
                 do k=1,km
                    do j=1,jm
                       do i=1,im
-                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,m)%r3(ipic)%qr4(i,j,k),.2_r_single)
-                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,m)%r3(ipic)%qr4(i,j,k),-.2_r_single)
+                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,m)%r3(ipic)%qr4(i,j,k),alimensq)
+                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,m)%r3(ipic)%qr4(i,j,k),-alimensq)
                       end do
                    end do
                 end do

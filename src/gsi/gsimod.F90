@@ -70,7 +70,7 @@
                        biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc,&
                        ssmis_method,ssmis_precond,gmi_method,amsr2_method,bias_zero_start, &
                        reset_bad_radbc,cld_det_dec2bin,diag_version,lupdqc,lqcoef
-  use radinfo, only: tzr_qc,tzr_bufrsave
+  use radinfo, only: tzr_qc,tzr_bufrsave,alimqsig
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
@@ -148,7 +148,7 @@
                          beta_s0,beta_e0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
-                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB
+                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,alimensq
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -1010,7 +1010,7 @@
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
        uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,uv_doe_b_213, &
-       vad_near_analtime
+       vad_near_analtime,alimqsig
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -1334,7 +1334,7 @@
                 jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
-                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB
+                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,alimensq
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):

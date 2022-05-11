@@ -211,6 +211,7 @@ module hybrid_ensemble_parameters
 !                             will be equal to nobs_bins (4DVAR) when running in 4d-ensemble-var mode
 !   def full_ensemble       - logical switch to use ensemble perturbation on first guess or on ensemble mean
 !                              for the first member of ensemble
+!   def alimensq            - limit on size of ensemble perturbations (in RH) default .2 (20%)
 !   def   beta_s            - vertical weighting function for static B
 !   def   beta_e            - vertical weighting function for localization A
 !   def sqrt_beta_s            - sqrt(beta_s)
@@ -272,6 +273,7 @@ module hybrid_ensemble_parameters
   public :: sp_ens
   public :: sp_loc
   public :: p_e2a
+  public :: alimensq
   public :: p_sploc2ens
   public :: use_localization_grid
   public :: use_gfs_ens
@@ -313,6 +315,7 @@ module hybrid_ensemble_parameters
   integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   real(r_kind) beta_s0,beta_e0,s_ens_h,s_ens_v,grid_ratio_ens
+  real(r_single) alimensq
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_sploc,grd_anl,grd_e1,grd_a1
   type(spec_vars),save :: sp_ens,sp_loc
   type(egrid2agrid_parm),save :: p_e2a,p_sploc2ens
@@ -417,6 +420,7 @@ subroutine init_hybrid_ensemble_parameters
   i_en_perts_io=0            ! default for en_pert IO. 0 is no IO
   ensemble_path = './'       ! default for path to ensemble members
   ens_fast_read=.false.
+  alimensq=.2_r_single
 
 end subroutine init_hybrid_ensemble_parameters
 

@@ -1682,6 +1682,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      else
         q(k)  = qsmall
      endif
+     qs(k) = (ges_qsat(ix ,iy ,k,itsig )*w00+ &
+              ges_qsat(ixp,iy ,k,itsig )*w10+ &
+              ges_qsat(ix ,iyp,k,itsig )*w01+ &
+              ges_qsat(ixp,iyp,k,itsig )*w11)*dtsig + &
+             (ges_qsat(ix ,iy ,k,itsigp)*w00+ &
+              ges_qsat(ixp,iy ,k,itsigp)*w10+ &
+              ges_qsat(ix ,iyp,k,itsigp)*w01+ &
+              ges_qsat(ixp,iyp,k,itsigp)*w11)*dtsigp
+     rh(k) = q(k)/qs(k)
      c3(k)=r1000/(one-q(k))
      qmix(k)=q(k)*c3(k)  !conver specific humidity to mixing ratio
 ! Space-time interpolation of ozone(poz)
@@ -1890,17 +1899,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           end do
        end if ! lread_ext_aerosol
     end if ! n_actual_aerosols_wk > 0
-    do k=1,nsig
-        qs(k) = (ges_qsat(ix ,iy ,k,itsig )*w00+ &
-                 ges_qsat(ixp,iy ,k,itsig )*w10+ &
-                 ges_qsat(ix ,iyp,k,itsig )*w01+ &
-                 ges_qsat(ixp,iyp,k,itsig )*w11)*dtsig + &
-                (ges_qsat(ix ,iy ,k,itsigp)*w00+ &
-                 ges_qsat(ixp,iy ,k,itsigp)*w10+ &
-                 ges_qsat(ix ,iyp,k,itsigp)*w01+ &
-                 ges_qsat(ixp,iyp,k,itsigp)*w11)*dtsigp
-        rh(k) = q(k)/qs(k)
-    end do
   endif
 
 

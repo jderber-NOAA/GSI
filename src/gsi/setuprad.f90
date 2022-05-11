@@ -294,7 +294,7 @@ contains
                    ifail_iomg_det, ifail_isst_det, ifail_itopo_det,ifail_iwndspeed_det
   use qcmod, only: qc_gmi,qc_saphir,qc_amsr2
   use radinfo, only: iland_det, isnow_det, iwater_det, imix_det, iice_det, &
-                      iomg_det, itopo_det, isst_det,iwndspeed_det
+                      iomg_det, itopo_det, isst_det, iwndspeed_det, alimqsig
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
   use state_vectors, only: svars3d, levels, svars2d, ns3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
@@ -1762,7 +1762,7 @@ contains
         if(obstype == 'cris' .or. obstype=='cris-fsr' .or. obstype == 'iasi')then
            tbc3=tbc
            tb_obs3=tb_obs
-           varinv0 = varinv
+           varinv0=varinv
            raterr2 = zero
            err2 = one/error0**2
            wgtjo= varinv     ! weight used in Jo term
@@ -1777,7 +1777,7 @@ contains
                   raterr2(ii)=error0(ii)**2*varinv(ii)
                 endif
              enddo
-             if(iii>0)then
+             if(iii>0 .and. iinstr.ne.-1)then
                chan_count=(iii*(iii+1))/2
                allocate(rsqrtinv(chan_count))
                allocate(rinvdiag(iii))
@@ -1786,14 +1786,14 @@ contains
                account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv,&
                                                   tbc3,tb_obs3,err2,raterr2,wgtjo,jacobian2,cor_opt,&
                                                   iii,rsqrtinv,rinvdiag)
-               varinv = wgtjo
                deallocate(rsqrtinv,rinvdiag)
              endif
            endif
            chanloop: do i = 1,nchanl
-              if(varinv(i) > tiny_r_kind)then
+              if(varinv0(i) > tiny_r_kind)then
                 levelloop:do k = 1,nsig
-                 if(jacobian(iqs+k,i)*qs(k) > 400._r_kind)then
+            
+                 if(jacobian2(iqs+k,i)*qs(k) > alimqsig)then
                     varinv0(i) = zero
                     if(luse(n))aivals(14,is) = aivals(14,is) + one
                     exit levelloop

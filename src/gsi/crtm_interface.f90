@@ -1973,7 +1973,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
      kk2 = klevel(kk)
      atmosphere(1)%temperature(k) = h(kk2)
-     atmosphere(1)%absorber(k,1)  = r1000*q(kk2)*c3(kk2)
+     atmosphere(1)%absorber(k,1)  = q(kk2)*c3(kk2)
      if(iozs==0) then
         atmosphere(1)%absorber(k,2)  = poz(kk2)
      else

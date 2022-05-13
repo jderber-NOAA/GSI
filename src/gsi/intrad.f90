@@ -341,8 +341,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
     call gsi_bundlegetpointer(rval,'v',  rv, istatus)
   end if
   if(luset)then
-    call gsi_bundlegetpointer(sval,'tv' ,st, istatus)
-    call gsi_bundlegetpointer(rval,'tv' ,rt, istatus)
+    call gsi_bundlegetpointer(sval,'tsen' ,st, istatus)
+    call gsi_bundlegetpointer(rval,'tsen' ,rt, istatus)
   end if
   if(luseq)then
     call gsi_bundlegetpointer(sval,'q',  sq, istatus)
@@ -413,7 +413,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i4 = i4n(k)
         if(luset)then
            tdir(itsen+k)=  w1*  st(i1)+w2*  st(i2)+ &
-                         w3*  st(i3)+w4*  st(i4)
+                           w3*  st(i3)+w4*  st(i4)
         endif
         if(luseq)then
            tdir(iqv+k)= w1*  sq(i1)+w2*  sq(i2)+ &

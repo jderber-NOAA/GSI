@@ -118,7 +118,7 @@ subroutine setrad(sval)
   if(lgoback)return
 
 ! check to see if variable participates in forward operator
-! tv
+! tsen
   indx=getindex(radjacnames,'tsen')
   look=(itsen==0.and.indx>0)
   itsen=-1

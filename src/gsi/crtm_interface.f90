@@ -1139,7 +1139,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(5)     :: tmp_time
   real(r_kind),dimension(0:3)   :: dtskin
   real(r_kind),dimension(msig)  :: c6
-  real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
+  real(r_kind),dimension(nsig)  :: c3
   real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj
   real(r_kind),dimension(nsig) :: rho_air   ! density of air (kg/m3)
   real(r_kind),dimension(nsig) :: cf_calc   ! GFDL cloud fraction calculation
@@ -1707,11 +1707,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                  ges_qsat (ix ,iyp,k, itsigp)*w01+ &
                  ges_qsat (ixp,iyp,k, itsigp)*w11)*dtsigp
      end if
-     c2(k)=one/(one+fv*q(k))
-     c3(k)=one/(one-q(k))
-     c4(k)=fv*h(k)*c2(k)
-     c5(k)=r1000*c3(k)*c3(k)
-     qmix(k)=q(k)*c3(k)  !conver specific humidity to mixing ratio
+     c3(k)=r1000/(one-q(k))
+     qmix(k)=q(k)*c3(k)  !convert specific humidity to mixing ratio
 ! Space-time interpolation of ozone(poz)
      if (iozs==0) then
          poz(k)=((ozges_itsig (ix ,iy ,k)*w00+ &
@@ -2279,13 +2276,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !  Deflate moisture jacobian above the tropopause.
        if (itv>=0) then
           do k=1,nsig
-             jacobian(itv+k,i)=temp(k,i)*c2(k)               ! virtual temperature sensitivity
+             jacobian(itv+k,i)=temp(k,i)               ! sensible temperature sensitivity
           end do ! <nsig>
        endif
        if (iqv>=0) then
           m=ich(i)
           do k=1,nsig
-             jacobian(iqv+k,i)=c5(k)*wmix(k,i)-c4(k)*temp(k,i)        ! moisture sensitivity
+             jacobian(iqv+k,i)=c3(k)*wmix(k,i)        ! moisture sensitivity
              if (prsi(k) < trop5) then
                 term = (prsi(k)-trop5)/(trop5-prsi(nsig))
                 jacobian(iqv+k,i) = exp(ifactq(m)*term)*jacobian(iqv+k,i)

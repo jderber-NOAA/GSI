@@ -332,7 +332,7 @@ contains
   integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii,ijacob
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret
-  integer(i_kind) ioz,ius,ivs,iwrmype
+  integer(i_kind) ioz,ius,ivs,iqs,iwrmype
   integer(i_kind) iversion_radiag, istatus
   integer(i_kind) cor_opt,iinstr,chan_count
   character(len=80) covtype
@@ -384,7 +384,7 @@ contains
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
   real(r_kind),dimension(nchanl):: err2,tbc0,tb_obs0,raterr2,wgtjo
-  real(r_kind),dimension(nchanl):: varinv0
+  real(r_kind),dimension(nchanl):: varinv0,raterr2save,err2save
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
@@ -395,30 +395,31 @@ contains
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
-  real(r_kind),dimension(nsig):: qvp,tvp
+  real(r_kind),dimension(nsig):: qvp,tvp,qs
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind),dimension(nchanl):: cld_rbc_idx,cld_rbc_idx2
   real(r_kind),dimension(nchanl):: tcc         
+  real(r_kind),dimension(5):: cond
   real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval,ciw_guess,rain_guess,snow_guess,clw_avg
-  real(r_kind) :: tnoise_save
+  real(r_kind) :: tnoise_save, amax, amin
   real(r_kind),dimension(:), allocatable :: rsqrtinv
   real(r_kind),dimension(:), allocatable :: rinvdiag
 
 !for GMI (dual scan angles)
   real(r_kind),dimension(nchanl):: emissivity2,ts2, emissivity_k2,tsim2
-  real(r_kind),dimension(nchanl):: tsim_clr2
+  real(r_kind),dimension(nchanl):: tsim_clr2,diagmult,diagbase
   real(r_kind),dimension(5)     :: gmi_low_angles
   real(r_kind),dimension(nsig,nchanl):: wmix2,temp2,ptau52
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian2
-  real(r_kind) cosza2 
+  real(r_kind) cosza2
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nchanl):: kmax
   integer(i_kind),allocatable,dimension(:) :: sc_index
-  integer(i_kind)  :: state_ind, nind, nnz
+  integer(i_kind)  :: state_ind, nind, nnz, nciter, ncmaxiter
 
   logical channel_passive
   logical,dimension(nobs):: luse
@@ -601,6 +602,7 @@ contains
   if(ioz>0) then
      ioz=radjacindxs(ioz)
   endif
+  iqs =getindex(radjacnames,'q')
   ius =getindex(radjacnames,'u')
   ivs =getindex(radjacnames,'v')
   if(ius>0.and.ivs>0) then
@@ -894,7 +896,7 @@ contains
         total_cloud_cover=zero
         if (radmod%lcloud_fwd) then
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status,tsim_clr=tsim_clr,tcc=tcc, & 
@@ -905,7 +907,7 @@ contains
              data_s(ilzen_ang:iscan_ang, n) = data_s(ilzen_ang2:iscan_ang2, n)
              data_s(iszen_ang:isazi_ang, n) = data_s(iszen_ang2:isazi_ang2, n)
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-                tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
                  tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status,tsim_clr=tsim_clr2,tcc=tcc,&
@@ -929,7 +931,7 @@ contains
           cld = total_cloud_cover
         else
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status)
@@ -939,7 +941,7 @@ contains
              data_s(ilzen_ang:iscan_ang, n) = data_s(ilzen_ang2:iscan_ang2, n)
              data_s(iszen_ang:isazi_ang, n) = data_s(iszen_ang2:isazi_ang2, n)
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-                tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
                  tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status)
@@ -1768,34 +1770,93 @@ contains
 
         enddo
 
-        tbc0=tbc
-        tb_obs0=tb_obs
-        varinv0 = varinv
-        raterr2 = zero
-        err2 = one/error0**2
-        wgtjo= varinv     ! weight used in Jo term
+        ncmaxiter=5
         account_for_corr_obs = .false.
+        iii=0
+        do ii=1,nchanl
+           m=ich(ii)
+           if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+             iii=iii+1
+             raterr2(ii)=error0(ii)**2*varinv(ii)
+           else
+             if(varinv(ii)>tiny_r_kind .and. iuse_rad(m) <= 0)then
+               write(6,*) ' inconsistent error ',varinv(ii),iuse_rad(m),ii,n,mype
+             end if
+             varinv(ii) = zero
+           endif
+        enddo
+        err2 = one/error0**2
         if (l_may_be_passive .and. .not. retrieval) then
-          iii=0
-          do ii=1,nchanl
-             m=ich(ii)
-             if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
-               iii=iii+1
-               raterr2(ii)=error0(ii)**2*varinv(ii)
-             endif
-          enddo
           if(iii>0 .and. iinstr.ne.-1)then
+            varinv0=varinv
+            tbc0=tbc
+            tb_obs0=tb_obs
+            jacobian2=jacobian
+            raterr2save=raterr2
+            err2save=err2
+            cond=one
+            diagbase=zero
             chan_count=(iii*(iii+1))/2
+            if(allocated(rsqrtinv))deallocate(rsqrtinv)
+            if(allocated(rinvdiag))deallocate(rinvdiag)
             allocate(rsqrtinv(chan_count))
             allocate(rinvdiag(iii))
-            rsqrtinv=zero
-            rinvdiag=zero
-            account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv,&
-                                               tbc,tb_obs,err2,raterr2,wgtjo,jacobian,cor_opt,iii,rsqrtinv,rinvdiag)
-            varinv = wgtjo
+            condloop:do nciter=1,ncmaxiter
+              varinv=varinv0
+              tbc=tbc0
+              tb_obs=tb_obs0
+              wgtjo= varinv0     ! weight used in Jo term
+              jacobian=jacobian2
+              raterr2=raterr2save
+              err2=err2save
+              diagmult=float(nciter-1)**2*diagbase
+              rsqrtinv=zero
+              rinvdiag=zero
+              account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv,diagmult,&
+                                      tbc,tb_obs,err2,raterr2,wgtjo,jacobian,cor_opt,iii,rsqrtinv,rinvdiag)
+              amax=-9999.0_r_kind
+              amin= 9999.0_r_kind
+              do i=1,iii
+                amax=max(amax,rinvdiag(i))
+                amin=min(amin,rinvdiag(i))
+              end do
+              cond(nciter)=amax/amin
+              if(cond(nciter) < 50.)then
+                 varinv=wgtjo
+                 exit condloop
+              else
+                 if(mype == 383)write(6,*)nciter,n,mype,cond(nciter)
+                 if(nciter==ncmaxiter)then
+                     write(6,*) 'cond iteration failed ',n,cond,mype
+                     varinv=zero
+                     exit condloop
+                 end if
+                 varinv=varinv0
+                 if(nciter == 1)then
+                    do ii=1,nchanl
+                       m=ich(ii)
+                       if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+                          diagbase(ii)=0.1_r_kind
+                          do k=1,nsig
+                            diagbase(ii)=diagbase(ii)+abs(jacobian(iqs+k,ii))*qs(k) 
+                          end do
+                       end if
+                    end do
+!                   diagbase=10._r_kind*diagbase
+                 end if
+              end if
+            end do condloop
           endif
         endif
-
+!       if(mype == 383)then
+!         write(6,*) 'tbc0',tbc0
+!         write(6,*) 'tbc',tbc
+!         write(6,*) 'tbcnob',tbcnob
+!         write(6,*) 'varinv',varinv
+!         write(6,*) 'raterr',raterr2
+!         write(6,*) 'raterr',err2
+!       end if
+  
         icc = 0
         iccm= 0
 

@@ -954,7 +954,7 @@ subroutine destroy_crtm
   return
 end subroutine destroy_crtm
 subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
-                   h,q,clw_guess,ciw_guess,rain_guess,snow_guess,prsl,prsi, &
+                   h,q,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsl,prsi, &
                    trop5,tzbgr,dtsavg,sfc_speed,&
                    tsim,emissivity,ptau5,ts, &
                    emissivity_k,temp,wmix,jacobian,error_status,tsim_clr,tcc, & 
@@ -1068,7 +1068,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind)                       ,intent(in   ) :: nchanl,nreal
   integer(i_kind),dimension(nchanl)     ,intent(in   ) :: ich
   real(r_kind)                          ,intent(  out) :: trop5,tzbgr
-  real(r_kind),dimension(nsig)          ,intent(  out) :: h,q,prsl
+  real(r_kind),dimension(nsig)          ,intent(  out) :: h,q,prsl,qs
   real(r_kind),dimension(nsig+1)        ,intent(  out) :: prsi
   real(r_kind)                          ,intent(  out) :: sfc_speed,dtsavg
   real(r_kind),dimension(nchanl+nreal)  ,intent(in   ) :: data_s
@@ -1112,7 +1112,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: idx700,dprs,dprs_min  
   integer(i_kind),dimension(8)::obs_time,anal_time
   integer(i_kind),dimension(msig) :: klevel
-  real(r_kind),dimension(nsig) :: qsat
 
 ! ****************************** 
 ! Constrained indexing for lai
@@ -1135,7 +1134,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig)  :: prsl_rtm
   real(r_kind),dimension(msig)  :: auxq,auxdp
   real(r_kind),dimension(nsig)  :: poz
-  real(r_kind),dimension(nsig)  :: rh,qs
+  real(r_kind),dimension(nsig)  :: rh
   real(r_kind),dimension(5)     :: tmp_time
   real(r_kind),dimension(0:3)   :: dtskin
   real(r_kind),dimension(msig)  :: c6
@@ -1697,16 +1696,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      else
         q(k)  = qsmall
      endif
-     if (n_clouds_fwd_wk>0) then
-        qsat(k)=(ges_qsat (ix ,iy ,k, itsig)*w00+ &
-                 ges_qsat (ixp,iy ,k, itsig)*w10+ &
-                 ges_qsat (ix ,iyp,k, itsig)*w01+ &
-                 ges_qsat (ixp,iyp,k, itsig)*w11)*dtsig + &
-                (ges_qsat (ix ,iy ,k, itsigp)*w00+ &
-                 ges_qsat (ixp,iy ,k, itsigp)*w10+ &
-                 ges_qsat (ix ,iyp,k, itsigp)*w01+ &
-                 ges_qsat (ixp,iyp,k, itsigp)*w11)*dtsigp
-     end if
+     qs(k)=(ges_qsat (ix ,iy ,k, itsig)*w00+ &
+            ges_qsat (ixp,iy ,k, itsig)*w10+ &
+            ges_qsat (ix ,iyp,k, itsig)*w01+ &
+            ges_qsat (ixp,iyp,k, itsig)*w11)*dtsig + &
+           (ges_qsat (ix ,iy ,k, itsigp)*w00+ &
+            ges_qsat (ixp,iy ,k, itsigp)*w10+ &
+            ges_qsat (ix ,iyp,k, itsigp)*w01+ &
+            ges_qsat (ixp,iyp,k, itsigp)*w11)*dtsigp
      c3(k)=r1000/(one-q(k))
      qmix(k)=q(k)*c3(k)  !convert specific humidity to mixing ratio
 ! Space-time interpolation of ozone(poz)
@@ -1803,7 +1800,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==11 .and.  lcalc_gfdl_cfrac ) then
   if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==11 .and.  lprecip_wk ) then
      cf_calc  = zero
-     call calc_gfdl_cloudfrac(rho_air,h,q,cloud,hs,garea,qsat,cf_calc)
+     call calc_gfdl_cloudfrac(rho_air,h,q,cloud,hs,garea,qs,cf_calc)
      cf   = cf_calc
      icfs = 0        ! load cloud fraction into CRTM 
   endif
@@ -1917,14 +1914,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        end if ! lread_ext_aerosol
     end if ! n_actual_aerosols_wk > 0
     do k=1,nsig
-        qs(k) = (ges_qsat(ix ,iy ,k,itsig )*w00+ &
-                 ges_qsat(ixp,iy ,k,itsig )*w10+ &
-                 ges_qsat(ix ,iyp,k,itsig )*w01+ &
-                 ges_qsat(ixp,iyp,k,itsig )*w11)*dtsig + &
-                (ges_qsat(ix ,iy ,k,itsigp)*w00+ &
-                 ges_qsat(ixp,iy ,k,itsigp)*w10+ &
-                 ges_qsat(ix ,iyp,k,itsigp)*w01+ &
-                 ges_qsat(ixp,iyp,k,itsigp)*w11)*dtsigp
         rh(k) = q(k)/qs(k)
     end do
   endif

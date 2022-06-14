@@ -1059,7 +1059,7 @@ subroutine upd_varch_
 
 end subroutine upd_varch_
 !EOC
-logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,diagmult,depart,obs, &
+logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
                   err2,raterr2,wgtjo,jacobian,method,nchasm,rsqrtinv,rinvdiag)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1093,7 +1093,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,diagmult,depar
    integer(i_kind), intent(in) :: nsigradjac
    integer(i_kind), intent(in) :: ich(nchanl)
    integer(i_kind), intent(out) :: method
-   real(r_kind), intent(in)    :: varinv(nchanl),diagmult(nchanl)
+   real(r_kind), intent(in)    :: varinv(nchanl)
    real(r_kind), intent(inout) :: depart(nchanl),obs(nchanl)
    real(r_kind), intent(inout) :: err2(nchanl)
    real(r_kind), intent(inout) :: raterr2(nchanl)
@@ -1114,7 +1114,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,diagmult,depar
 
    if( GSI_BundleErrorCov(iinstr)%nch_active < 0) return
 
-   adjust_jac_ = scale_jac_ (depart,obs,err2,raterr2,jacobian,nchanl,varinv,diagmult,wgtjo, &
+   adjust_jac_ = scale_jac_ (depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
                              ich,nchasm,rsqrtinv,rinvdiag,GSI_BundleErrorCov(iinstr))
 
    method = GSI_BundleErrorCov(iinstr)%method
@@ -1128,7 +1128,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,diagmult,depar
 !
 ! !INTERFACE:
 !
-logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diagmult,wgtjo, &
+logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
                             ich,nchasm,rsqrtinv,rinvdiag,ErrorCov)
 ! !USES:
    use constants, only: tiny_r_kind
@@ -1140,7 +1140,6 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diagm
    integer(i_kind),intent(in) :: nchanl   ! total number of channels in instrument
    integer(i_kind),intent(in) :: ich(:)   ! true channel numeber
    real(r_kind),   intent(in) :: varinv(:)    ! inverse of specified ob-error-variance 
-   real(r_kind),   intent(in) :: diagmult(:)  ! multiplier for diagonal 
 ! !INPUT/OUTPUT PARAMETERS:
    real(r_kind),intent(inout) :: depart(:)    ! observation-minus-guess departures
    real(r_kind),intent(inout) :: obs(:)       ! observations
@@ -1317,16 +1316,16 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diagm
              jjj=IJsubset(jj)
              qcaj(jj) = raterr2(jjj)
            enddo
-           subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,diagmult,qcaj)
+           subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,qcaj)
          else
-           subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,diagmult) 
+           subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT) 
          endif
        else if( ErrorCov%method==1 ) then
          do jj=1,ncp
            jjj=IJsubset(jj)
            qcaj(jj) = varinv(jjj)
          enddo
-         subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,diagmult,qcaj)
+         subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,qcaj)
 
        endif
        if(.not.subset) then
@@ -1407,12 +1406,11 @@ end function scale_jac_
 !
 ! !INTERFACE:
 !
-logical function choleskydecom_inv_(Isubset,ErrorCov,UT,diagmult,qcaj)
+logical function choleskydecom_inv_(Isubset,ErrorCov,UT,qcaj)
 ! !USES:
   implicit none
   integer(i_kind),intent(in) :: Isubset(:)
   real(r_kind),intent(inout) :: UT(:,:)
-  real(r_kind),intent(in) :: diagmult(:)
   real(r_kind),optional,intent(in) :: qcaj(:)
   type(ObsErrorCov),intent(in) :: ErrorCov
 ! !DESCRIPTION: This routine makes a LAPACK call to Cholesky factorization of cov(R),
@@ -1453,9 +1451,6 @@ logical function choleskydecom_inv_(Isubset,ErrorCov,UT,diagmult,qcaj)
       enddo
     enddo
   endif
-  do jj=1,ncp
-     UT(jj,jj) = UT(jj,jj)+diagmult(isubset(jj))**2
-  end do
   if(r_kind==r_single) then ! this trick only works because this uses the f77 lapack interfaces
      call SPOTRF('U', ncp, UT, ncp, info )
   else if(r_kind==r_double) then

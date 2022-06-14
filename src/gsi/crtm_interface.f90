@@ -1161,7 +1161,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),pointer,dimension(:,:,:)::cfges_itsig =>NULL()  
   real(r_kind),pointer,dimension(:,:,:)::cfges_itsigp=>NULL()  
 
-  logical :: sea,icmask   
+  logical :: sea,icmask
 
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
        120,151,181,212,243,273,304,334/)
@@ -2246,6 +2246,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   wmix  - moisture sensitivity
 !   omix  - ozone sensitivity
 !   ptau5 - layer transmittance
+       
        do k=1,msig
           kk = klevel(msig-k+1)
           temp(kk,i) = temp(kk,i) + atmosphere_k(i,1)%temperature(k)
@@ -2272,10 +2273,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           m=ich(i)
           do k=1,nsig
              jacobian(iqv+k,i)=c3(k)*wmix(k,i)        ! moisture sensitivity
-             if (prsi(k) < trop5) then
-                term = (prsi(k)-trop5)/(trop5-prsi(nsig))
-                jacobian(iqv+k,i) = exp(ifactq(m)*term)*jacobian(iqv+k,i)
-             endif
+!            if (prsi(k) < trop5) then
+!               term = (prsi(k)-trop5)/(trop5-prsi(nsig))
+!               jacobian(iqv+k,i) = exp(ifactq(m)*term)*jacobian(iqv+k,i)
+!            endif
           end do ! <nsig>
        endif
        if (ioz>=0) then

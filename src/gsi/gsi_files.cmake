@@ -494,6 +494,7 @@ read_lag.f90
 read_lidar.f90
 read_mitm_mxtm.f90
 read_modsbufr.f90
+read_mtg_irs.f90
 read_nasa_larc.f90
 read_nsstbufr.f90
 read_obs.F90

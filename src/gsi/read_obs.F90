@@ -334,6 +334,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !         kidsat = 288
        else if ( jsatid == 'meghat' ) then
          kidsat = 440
+       else if ( jsatid == 'mtg' ) then
+         kidsat = 72                                    ! expected value
        end if
 
        call closbf(lnbufr)
@@ -924,7 +926,8 @@ subroutine read_obs(ndata,mype)
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
                obstype == 'cris'      .or. obstype == 'cris-fsr'  .or.  &
                obstype == 'amsr2'     .or. obstype == 'viirs-m'   .or.  &
-               obstype == 'gmi'       .or. obstype == 'saphir'   ) then
+               obstype == 'gmi'       .or. obstype == 'saphir'    .or.  &
+               obstype == 'irs'    ) then
           ditype(i) = 'rad'
        else if (is_extOzone(dfile(i),obstype,dplat(i))) then
           ditype(i) = 'ozone'
@@ -1040,6 +1043,8 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'ssmi' )then
                 parallel_read(i)= .true.
              else if(obstype == 'ssu' )then
+                parallel_read(i)= .true.
+             else if(obstype == 'irs' )then
                 parallel_read(i)= .true.
              else if(obstype == 'amsr2')then    
 !                parallel_read(i)= .true.     ! turn parallel read off for spatial averaging
@@ -1721,6 +1726,13 @@ subroutine read_obs(ndata,mype)
 !            Process iasi data
              else if(obstype == 'iasi')then
                 call read_iasi(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
+                string='READ_IASI'
+!            Process irs data from MTG
+             else if(obstype == 'irs')then
+                call read_mtg_irs(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
                      read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)

@@ -722,6 +722,7 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs,ig)
   nx=grd_loc%nlon ; ny=grd_loc%nlat ; nz=nlevs
 
   if(vvlocal)then
+!$omp parallel do schedule(static,1) private(k,j,i,l)
      do k=1,nz
         do j=1,nx
 
@@ -754,6 +755,7 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs,ig)
         enddo
      enddo
   else
+!$omp parallel do schedule(static,1) private(k,j,i,l)
      do k=1,nz
         do j=1,nx
 
@@ -820,7 +822,8 @@ subroutine normal_new_factorization_rf_z
   implicit none
 
   integer(i_kind) k,iadvance,iback,nxy,ig
-  real(r_kind) f(grd_ens%latlon11,grd_ens%nsig),diag(grd_ens%latlon11,grd_ens%nsig)
+  real(r_kind) f(grd_ens%latlon11,grd_ens%nsig)
+  real(r_kind),allocatable,dimension(:,:) :: diag
 
   if(allocated(znorm_new)) deallocate(znorm_new)
   allocate(znorm_new(grd_ens%latlon11,grd_ens%nsig,naensloc))
@@ -839,16 +842,14 @@ subroutine normal_new_factorization_rf_z
         iadvance=2 ; iback=1
         call new_factorization_rf_z(f,iadvance,iback,ig)
         
-        diag(:,k)=sqrt(one/f(:,k))
+        znorm_new(:,k,ig)=sqrt(one/f(:,k))
      enddo
 
-     do k=1,grd_ens%nsig
-        znorm_new(:,k,ig)=diag(:,k)
-     enddo
   enddo !ig loop
 
 ! Check result:
   if(debug)then
+    allocate(diag(grd_ens%latlon11,grd_ens%nsig))
     do k=1,grd_ens%nsig
        f=zero
        f(:,k)=one
@@ -862,6 +863,7 @@ subroutine normal_new_factorization_rf_z
     enddo
 
     write(6,*)'in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
+    deallocate(diag)
   end if
   return
 
@@ -904,7 +906,6 @@ subroutine normal_new_factorization_rf_x
   integer(i_kind) i,j,k,iadvance,iback,kl,ig
   real(r_kind) f(grd_loc%nlat,grd_loc%nlon,grd_loc%kend_alloc+1-grd_loc%kbegin_loc)
   real(r_kind),allocatable:: diag(:,:,:)
-!  real(r_kind) diag(grd_loc%nlat,grd_loc%nlon)
 
 !                       possible to have kend_loc - kbegin_loc-1 for processors not involved
 !                          which results in infinite loops
@@ -918,8 +919,6 @@ subroutine normal_new_factorization_rf_x
   endif
   if(allocated(xnorm_new)) deallocate(xnorm_new)
   allocate(xnorm_new(grd_loc%nlat,grd_loc%nlon,kl,naensloc))
-  if(allocated(diag)) deallocate(diag)
-  allocate(diag(grd_loc%nlat,grd_loc%nlon,kl))
   xnorm_new=one
 
   do ig=1,naensgrp
@@ -936,20 +935,14 @@ subroutine normal_new_factorization_rf_x
         call new_factorization_rf_x(f,iadvance,iback,kl,ig)
         do k=1,kl
            do i=1,grd_loc%nlat
-              diag(i,j,k)=sqrt(one/f(i,j,k))
-           enddo
-        enddo
-     enddo
-     do k=1,kl
-        do j=1,grd_loc%nlon
-           do i=1,grd_loc%nlat
-              xnorm_new(i,j,k,ig)=diag(i,j,k)
+              xnorm_new(i,j,k,ig)=sqrt(one/f(i,j,k))
            enddo
         enddo
      enddo
   enddo !ig loop
 !           check accuracy of xnorm
   if(debug) then
+     allocate(diag(grd_loc%nlat,grd_loc%nlon,kl))
      do j=1,grd_loc%nlon
         f=zero
         do k=1,kl
@@ -968,6 +961,7 @@ subroutine normal_new_factorization_rf_x
         enddo
      enddo
      write(6,*)' in normal_new_factorization_rf_x,min,max(diag)=',minval(diag),maxval(diag)
+     deallocate(diag)
   endif
   return
 
@@ -1005,7 +999,6 @@ subroutine normal_new_factorization_rf_y
   implicit none
 
   integer(i_kind) i,k,lend,lcount,iadvance,iback,kl,loop,ll,iend,ig
-!  real(r_kind) f(grd_loc%nlat,grd_loc%nlon*(grd_loc%kend_alloc+1-grd_loc%kbegin_loc)),diag(grd_loc%nlat)
   real(r_kind) f(grd_loc%nlat,grd_loc%nlon,grd_loc%kend_alloc+1-grd_loc%kbegin_loc)
   real(r_kind),allocatable:: diag(:,:)
 
@@ -1023,8 +1016,6 @@ subroutine normal_new_factorization_rf_y
   if(allocated(ynorm_new)) deallocate(ynorm_new)
   allocate(ynorm_new(grd_loc%nlat,kl,naensloc))
 
-  if(allocated(diag)) deallocate(diag)
-  allocate(diag(grd_loc%nlat,kl))
 
   ynorm_new=one
 
@@ -1056,8 +1047,7 @@ subroutine normal_new_factorization_rf_y
         do k=1,kl
            do i=1,iend
               lcount=ll+i
-              diag(lcount,k)=sqrt(one/f(lcount,i,k))
-              ynorm_new(lcount,k,ig)=diag(lcount,k)
+              ynorm_new(lcount,k,ig)=sqrt(one/f(lcount,i,k))
               if(lcount == grd_loc%nlat) exit
            enddo
         enddo
@@ -1065,6 +1055,7 @@ subroutine normal_new_factorization_rf_y
   enddo !ig loop
 !               check that ynorm is corect
   if(debug) then
+     allocate(diag(grd_loc%nlat,kl))
      do loop=1,lend
         ll=(loop-1)*iend
         f=zero
@@ -1090,6 +1081,7 @@ subroutine normal_new_factorization_rf_y
         enddo
     enddo
     write(6,*)' in normal_new_factorization_rf_y, min,max(diag)=',minval(diag),maxval(diag)
+    deallocate(diag)
   endif
   return
 end subroutine normal_new_factorization_rf_y

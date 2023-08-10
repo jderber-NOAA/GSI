@@ -48,7 +48,7 @@ module gsi_rfv3io_mod
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlon_regional,nlat_regional
-  use constants, only:max_varname_length
+  use constants, only:max_varname_length,max_filename_length
   use gsi_bundlemod, only : gsi_bundle
   use general_sub2grid_mod, only: sub2grid_info
   use gridmod,  only: fv3_io_layout_y
@@ -187,9 +187,11 @@ module gsi_rfv3io_mod
 contains
   subroutine fv3regfilename_init(this,it)
   implicit None
+
   class(type_fv3regfilenameg),intent(inout):: this
-  character(255):: filename
   integer(i_kind),intent(in) :: it
+
+  character(255):: filename
   if (it == ntguessig) then
     this%grid_spec='fv3_grid_spec'
   else
@@ -279,11 +281,13 @@ subroutine gsi_rfv3io_get_grid_specs(ierr)
   use mpimod, only: mpi_comm_world,mpi_itype,mpi_rtype
 
   implicit none
+
+  integer(i_kind),intent(  out) :: ierr
+
   integer(i_kind) gfile_grid_spec
   character(:),allocatable    :: grid_spec
   character(:),allocatable    :: ak_bk
   character(len=:),allocatable :: coupler_res_filenam 
-  integer(i_kind),intent(  out) :: ierr
   integer(i_kind) i,k,ndimensions,iret,nvariables,nattributes,unlimiteddimid
   integer(i_kind) len,gfile_loc
   character(len=max_varname_length) :: name
@@ -530,6 +534,7 @@ subroutine read_fv3_files(mype)
     implicit none
 
 ! Declare passed variables
+
     integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
@@ -800,6 +805,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     implicit none
 
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin(:)
+
     integer(i_kind) :: it
     character(len=24),parameter :: myname = 'read_fv3_netcdf_guess'
     integer(i_kind) k,i,j
@@ -1823,6 +1829,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
     real(r_kind),intent(in),dimension(:,:),pointer::ges_t2m
     real(r_kind),intent(in),dimension(:,:),pointer::ges_q2m
     type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
+
     character(len=max_varname_length) :: name
     integer(i_kind),allocatable,dimension(:):: dim
     real(r_kind),allocatable,dimension(:):: work
@@ -2099,9 +2106,11 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
     implicit none
+
     character(*)   ,intent(in   ) :: varname,varname2,filenamein
     real(r_kind)   ,intent(out  ) :: work_sub(lat2,lon2) 
-    integer(i_kind)   ,intent(in   ) :: mype_io
+    integer(i_kind),intent(in   ) :: mype_io
+
     real(r_kind),allocatable,dimension(:,:,:):: uu
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:):: a
@@ -2199,15 +2208,17 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
     implicit none
+
     type(sub2grid_info), intent(in):: grd_ionouv 
     type(gsi_bundle),intent(inout) :: cstate_nouv
     character(*),intent(in):: filenamein
     type (type_fv3regfilenameg),intent(in) ::fv3filenamegin
+
     real(r_kind),allocatable,dimension(:,:):: uu2d
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
     character(len=max_varname_length) :: varname,vgsiname
     character(len=max_varname_length) :: name
-    character(len=max_varname_length) :: filenamein2
+    character(len=max_filename_length) :: filenamein2
     real(r_kind),allocatable,dimension(:,:):: uu2d_tmp
     integer(i_kind) :: countloc_tmp(3),startloc_tmp(3)
 
@@ -2375,13 +2386,15 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
     implicit none
+
     type(sub2grid_info), intent(in):: grd_ionouv 
     character(*),intent(in):: filenamein
-    type (type_fv3regfilenameg) :: fv3filenamegin
     type(gsi_bundle),intent(inout) :: cstate_nouv
+    type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
+
     real(r_kind),allocatable,dimension(:,:):: uu2d
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
-    character(len=max_varname_length) :: filenamein2
+    character(len=max_filename_length) :: filenamein2
     character(len=max_varname_length) :: varname,vgsiname
 
 
@@ -2474,15 +2487,17 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
     implicit none
+
     type(sub2grid_info), intent(in):: grd_uv 
     real(r_kind),dimension(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig),intent(inout)::ges_u
     real(r_kind),dimension(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig),intent(inout)::ges_v
-    type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
+    type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
+
     real(r_kind),dimension(2,grd_uv%nlat,grd_uv%nlon,grd_uv%kbegin_loc:grd_uv%kend_alloc):: hwork
     character(:), allocatable:: filenamein
     real(r_kind),allocatable,dimension(:,:):: u2d,v2d
     real(r_kind),allocatable,dimension(:,:):: uc2d,vc2d
-    character(len=max_varname_length) :: filenamein2
+    character(len=max_filename_length) :: filenamein2
     character(len=max_varname_length) :: varname,vgsiname
     real(r_kind),allocatable,dimension(:,:,:,:):: worksub
     integer(i_kind) u_grd_VarId,v_grd_VarId
@@ -2649,16 +2664,18 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin)
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
     implicit none
+
     type(sub2grid_info), intent(in):: grd_uv 
     real(r_kind)   ,intent(out  ) :: ges_u(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig) 
     real(r_kind)   ,intent(out  ) :: ges_v(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig) 
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
+
     real(r_kind),dimension(2,grd_uv%nlat,grd_uv%nlon,grd_uv%kbegin_loc:grd_uv%kend_alloc):: hwork
     character(len=:),allocatable :: filenamein
     real(r_kind),allocatable,dimension(:,:):: us2d,vw2d
     real(r_kind),allocatable,dimension(:,:):: uorv2d
     real(r_kind),allocatable,dimension(:,:,:,:):: worksub
-    character(len=max_varname_length) :: filenamein2 
+    character(len=max_filename_length) :: filenamein2 
     character(len=max_varname_length) :: varname
     integer(i_kind) nlatcase,nloncase
     integer(i_kind) kbgn,kend
@@ -2770,16 +2787,17 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
     implicit none
+
     character(*),intent(in):: filenamein
     type (type_fv3regfilenameg),intent(in) ::fv3filenamegin
     integer(i_kind)   ,intent(in   ) :: iope
-    real(r_kind),allocatable,dimension(:,:):: uu2d, uu2d_tmp
-    real(r_kind),dimension(nlat,nlon,nsig):: hwork
     real(r_kind),dimension(nlat,nlon,nsig),intent(out),optional:: delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz
+
     character(len=max_varname_length) :: varname
     character(len=max_varname_length) :: name
-    character(len=max_varname_length), allocatable,dimension(:) :: varname_files
-
+    character(len=max_filename_length), allocatable,dimension(:) :: varname_files
+    real(r_kind),allocatable,dimension(:,:):: uu2d, uu2d_tmp
+    real(r_kind),dimension(nlat,nlon,nsig):: hwork
     integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3),countloc_tmp(3),startloc_tmp(3)
     integer(i_kind) ilev,ilevtot,inative,ivar
     integer(i_kind) kbgn,kend
@@ -2985,10 +3003,12 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
     implicit none
+
     real(r_kind)   ,intent(out  ) :: ges_u(nlat,nlon,nsig)
     real(r_kind)   ,intent(out  ) :: ges_v(nlat,nlon,nsig)
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
     integer(i_kind), intent(in)   :: iope
+
     real(r_kind),dimension(2,nlat,nlon,nsig):: hwork
     character(:), allocatable:: filenamein
     real(r_kind),allocatable,dimension(:,:):: u2d,v2d
@@ -3161,6 +3181,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 
 
     implicit none
+
     type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
 
 ! Declare local constants
@@ -3544,14 +3565,14 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid
 
     implicit none
-    type(sub2grid_info), intent(in):: grd_uv 
-    real(r_kind),dimension(2,grd_uv%nlat,grd_uv%nlon,grd_uv%kbegin_loc:grd_uv%kend_alloc):: hwork
 
+    type(sub2grid_info), intent(in):: grd_uv 
     logical        ,intent(in   ) :: add_saved
     type (type_fv3regfilenameg),intent(in) ::fv3filenamegin
     real(r_kind),dimension(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig),intent(inout)::ges_u
     real(r_kind),dimension(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig),intent(inout)::ges_v
 
+    real(r_kind),dimension(2,grd_uv%nlat,grd_uv%nlon,grd_uv%kbegin_loc:grd_uv%kend_alloc):: hwork
     integer(i_kind) :: ugrd_VarId,gfile_loc,vgrd_VarId
     integer(i_kind) i,j,mm1,k,nzp1
     integer(i_kind) kbgn,kend
@@ -3745,14 +3766,17 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     use netcdf, only: nf90_write,nf90_inq_varid
     use netcdf, only: nf90_put_var,nf90_get_var
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid
+
     implicit none
+
     type(sub2grid_info), intent(in):: grd_uv 
     real(r_kind),dimension(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig),intent(inout)::ges_u
     real(r_kind),dimension(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig),intent(inout)::ges_v
     logical        ,intent(in   ) :: add_saved
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
+
     real(r_kind),dimension(2,grd_uv%nlat,grd_uv%nlon,grd_uv%kbegin_loc:grd_uv%kend_alloc):: hwork
-    character(len=:),allocatable :: filenamein
+    character(len=max_filename_length),allocatable :: filenamein
     character(len=max_varname_length) :: varname
 
     integer(i_kind) :: gfile_loc
@@ -4089,15 +4113,17 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
     use netcdf, only: nf90_inquire_dimension
     use gsi_bundlemod, only: gsi_bundle
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid
+
     implicit none
+
     type(sub2grid_info), intent(in):: grd_ionouv 
     type(gsi_bundle),intent(inout) :: cstate_nouv
-
     logical        ,intent(in   ) :: add_saved
     character(len=:), allocatable, intent(in) :: filenamein
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
+
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
-    character(len=max_varname_length) :: filenamein2 
+    character(len=max_filename_length) :: filenamein2 
     character(len=max_varname_length) :: varname,vgsiname,name
 
     integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
@@ -4274,6 +4300,7 @@ end subroutine gsi_fv3ncdf_write
 subroutine check(status)
     use kinds, only: i_kind
     use netcdf, only: nf90_noerr,nf90_strerror
+
     integer(i_kind), intent ( in) :: status
 
     if(status /= nf90_noerr) then
@@ -4313,6 +4340,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     use netcdf, only: nf90_put_var,nf90_get_var
     use gsi_bundlemod, only: gsi_bundle
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid
+
     implicit none
 
     type(sub2grid_info), intent(in):: grd_ionouv 
@@ -4320,6 +4348,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     logical        ,intent(in   ) :: add_saved
     character(*),intent(in):: filenamein
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
+
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
     character(len=max_varname_length) :: filenamein2 
 
@@ -4403,8 +4432,10 @@ subroutine reverse_grid_r(grid,nx,ny,nz)
     use kinds, only: r_kind,i_kind
 
     implicit none
+
     integer(i_kind),  intent(in     ) :: nx,ny,nz
     real(r_kind),     intent(inout  ) :: grid(nx,ny,nz)
+
     real(r_kind)                      :: tmp_grid(nx,ny)
     integer(i_kind)                   :: i,j,k
 !
@@ -4426,8 +4457,10 @@ subroutine reverse_grid_r_uv(grid,nx,ny,nz)
     use kinds, only: r_kind,i_kind
 
     implicit none
+
     integer(i_kind), intent(in     ) :: nx,ny,nz
     real(r_kind),    intent(inout  ) :: grid(nx,ny,nz)
+
     real(r_kind)                     :: tmp_grid(nx,ny)
     integer(i_kind)                  :: i,j,k
 !
@@ -4480,6 +4513,7 @@ subroutine convert_qx_to_cvpqx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue)
     use constants, only: zero, one_tenth
 
     implicit none
+
     real(r_kind), intent(inout  ) :: qr_arr(lat2,lon2,nsig)
     real(r_kind), intent(inout  ) :: qs_arr(lat2,lon2,nsig)
     real(r_kind), intent(inout  ) :: qg_arr(lat2,lon2,nsig)
@@ -4599,6 +4633,7 @@ subroutine convert_nx_to_cvpnx(qnx_arr,cvpnr,cvpnr_pvalue)
     use constants, only: zero, one_tenth
 
     implicit none
+
     real(r_kind), intent(inout  ) :: qnx_arr(lat2,lon2,nsig)
     logical,      intent(in     ) :: cvpnr
     real(r_kind), intent(in     ) :: cvpnr_pvalue
@@ -4663,6 +4698,7 @@ subroutine convert_cvpqx_to_qx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue)
     use constants, only: zero, one_tenth,r0_01
 
     implicit none
+
     real(r_kind), intent(inout  ) :: qr_arr(lat2,lon2,nsig)
     real(r_kind), intent(inout  ) :: qs_arr(lat2,lon2,nsig)
     real(r_kind), intent(inout  ) :: qg_arr(lat2,lon2,nsig)
@@ -4844,6 +4880,7 @@ subroutine convert_cvpnx_to_nx(qnx_arr,cvpnr,cvpnr_pvalue,cloud_nt_updt,q_arr,qr
 
 
     implicit none
+
     real(r_kind), intent(inout  )    :: qnx_arr(lat2,lon2,nsig)
     logical,      intent(in     )    :: cvpnr
     real(r_kind), intent(in     )    :: cvpnr_pvalue
@@ -4918,6 +4955,7 @@ subroutine gsi_copy_bundle(bundi,bundo)
  ! !INPUT/OUTPUT PARAMETERS:
 
     type(gsi_bundle), intent(inout) :: bundo
+
     character(len=max_varname_length),dimension(:),allocatable:: src_name_vars2d
     character(len=max_varname_length),dimension(:),allocatable:: src_name_vars3d
     character(len=max_varname_length),dimension(:),allocatable:: target_name_vars2d
@@ -4961,11 +4999,14 @@ subroutine gsi_copy_bundle(bundi,bundo)
     deallocate(target_name_vars3d,target_name_vars2d)
     return
 end subroutine gsi_copy_bundle
+
 subroutine getfv3lamfilevname(vgsinamein,fv3filenamegref,filenameout,vname)
+
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegref
     character(len=*):: vgsinamein
     character(len=*),intent(out):: vname
     character(len=*),intent(out):: filenameout
+
     if (ifindstrloc(vgsiname,vgsinamein)<= 0) then
       write(6,*)'the name ',vgsinamein ,'cannot be treated correctly in getfv3lamfilevname,stop'
       call stop2(333)
@@ -4988,9 +5029,11 @@ subroutine getfv3lamfilevname(vgsinamein,fv3filenamegref,filenameout,vname)
     return
 end subroutine getfv3lamfilevname
 function ifindstrloc(str_array,strin)
+
     integer(i_kind) ifindstrloc
-    character(len=max_varname_length),dimension(:) :: str_array
-    character(len=*) :: strin
+    character(len=max_varname_length),intent(in),dimension(:) :: str_array
+    character(len=*),intent(in) :: strin
+
     integer(i_kind) i
     ifindstrloc=0
     do i=1,size(str_array)

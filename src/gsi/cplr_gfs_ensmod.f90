@@ -121,9 +121,7 @@ subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
     end associate
 
     if ( (use_gfs_nemsio .or. use_gfs_ncio) .and. ens_fast_read ) then
-       call get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
-                         grd_ens%lat2,grd_ens%lon2, &
-                         nc2d,nc3d,iret,grd)
+       call get_user_ens_gfs_fastread_(ntindex,atm_bundle,iret)
     else
        do n = 1,members
           call get_gfs_ens(this,grd,n,ntindex,atm_bundle(n),iret)
@@ -134,8 +132,7 @@ subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
 
 end subroutine get_gfs_Nens
 
-subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
-                           lat2in,lon2in,nc2din,nc3din,iret,grd)
+subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle,iret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_user_ens_gfs_fastread_
@@ -193,9 +190,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     ! Declare passed variables
     integer(i_kind),     intent(in   ) :: ntindex
-    integer(i_kind),     intent(in   ) :: lat2in,lon2in,nc2din,nc3din
     integer(i_kind),     intent(  out) :: iret
-    type(sub2grid_info), intent(in   ) :: grd
     type(gsi_bundle),    intent(inout) :: atm_bundle(:)
 
 
@@ -203,16 +198,14 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     character(len=*),parameter :: myname_='get_user_ens_gfs_fastread_'
     character(len=70) :: filename
     character(len=70) :: filenamesfc
-    integer(i_kind) :: i,ii,j,k,n
+    integer(i_kind) :: i,j,k,n,nodex
     integer(i_kind) :: io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens
     integer(i_kind) :: ip
     integer(i_kind) :: nlon,nlat,nsig
     integer(i_kind),dimension(n_ens) :: io_pe0,iretx
     real(r_single),allocatable,dimension(:,:,:,:) :: en_full,en_loc
     real(r_single),allocatable,dimension(:,:,:) :: sloc
-    integer(i_kind),allocatable,dimension(:) :: m_cvars2dw,m_cvars3dw
     integer(i_kind) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
-    type(sub2grid_info) :: grd3d
 
 
     nlat=grd_ens%nlat
@@ -272,12 +265,10 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
           write(6,'(3(a,1x,i5,1x))') 'reading ensemble member', n,'on pe', io_pe0(n)
         enddo
       end if
+      nodex=io_pe0(1)
 
     end if
     if(mype==0) write(6,*) ' reading time level ',ntindex 
-    allocate(m_cvars2dw(nc2din),m_cvars3dw(nc3din))
-    m_cvars2dw=-999
-    m_cvars3dw=-999
 
 !!  read ensembles
 
@@ -289,18 +280,18 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
           if (cnvw_option) then
              write(filenamesfc,23) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
 23           format(a,'sfcf',i2.2,'_ens_mem',i3.3)
-             call parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
+             call parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
                                             ias,jas,mas, &
                                             iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                             filename,.true.,filenamesfc)
           else
-             call parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
+             call parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
                                             ias,jas,mas, &
                                             iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                             filename,.true.)
           end if
        else
-          call parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
+          call parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
                                          ias,jas,mas, &
                                          iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                          filename)
@@ -311,9 +302,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
 ! scatter to subdomains:
 
-    call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
-    call mpi_allreduce(m_cvars3dw,m_cvars3d,nc3d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
-    deallocate(m_cvars2dw,m_cvars3dw)
+    call mpi_bcast(m_cvars2d,nc2d,mpi_integer4,nodex,mpi_comm_world,ierror)
+    call mpi_bcast(m_cvars3d,nc3d,mpi_integer4,nodex,mpi_comm_world,ierror)
 
     ! Check hydrometeors in control variables 
     icw=getindex(cvars3d,'cw')
@@ -332,29 +322,24 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     if(ntindex == ntlevs_ens)call genex_destroy_info(s_a2b)  
 
-
-    call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
-
-
-    allocate(sloc(grd3d%lat2,grd3d%lon2,grd3d%num_fields))
+    allocate(sloc(grd_ens%lat2,grd_ens%lon2,grd_ens%num_fields))
     iretx=0
 !$omp parallel do  schedule(dynamic,1) private(n,k,j,i,sloc) 
     do n=1,n_ens
-       do k=1,grd3d%num_fields
-          do j=1,grd3d%lon2
-             do i=1,grd3d%lat2
+       do k=1,grd_ens%num_fields
+          do j=1,grd_ens%lon2
+             do i=1,grd_ens%lat2
                 sloc(i,j,k)=en_loc(i+ibsm-1,j+jbsm-1,k,n)
              enddo
           enddo
        enddo
-       call move2bundle_(grd3d,sloc,atm_bundle(n),m_cvars2d,m_cvars3d,iretx(n))
+       call move2bundle_(grd_ens,sloc,atm_bundle(n),m_cvars2d,m_cvars3d,iretx(n))
     enddo
     iret=iretx(1)
     do n=2,n_ens
        iret=iret+iretx(n)
     end do
     deallocate(en_loc,sloc)
-    call general_sub2grid_destroy_info(grd3d,grd)
 
 end subroutine get_user_ens_gfs_fastread_
 
@@ -478,28 +463,6 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
 end subroutine move2bundle_
 
-subroutine create_grd23d_(grd23d,nvert)
-
-    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
-    use hybrid_ensemble_parameters, only: grd_ens
-
-    implicit none
-
-    ! Declare local parameters
-
-    ! Declare passed variables
-    type(sub2grid_info), intent(inout) :: grd23d
-    integer(i_kind),     intent(in   ) :: nvert
-
-    ! Declare local variables
-    integer(i_kind) :: inner_vars = 1
-    logical :: regional = .false.
-
-    call general_sub2grid_create_info(grd23d,inner_vars,grd_ens%nlat,grd_ens%nlon, &
-                                      nvert,nvert,regional,s_ref=grd_ens)
-
-end subroutine create_grd23d_
-
 subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
 
 !     do computation on all processors, then assign final local processor
@@ -555,7 +518,7 @@ subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i
 
 end subroutine ens_io_partition_
 
-subroutine parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsig, &
+subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
                                         ias,jas,mas, &
                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                         filename,init_head,filenamesfc)
@@ -577,14 +540,14 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,ns
    integer(i_kind),  intent(in   ) :: nlon,nlat,nsig
    integer(i_kind),  intent(in   ) :: ias,jas,mas
    integer(i_kind),  intent(in   ) :: iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz
-   integer(i_kind),  intent(inout) :: m_cvars2dw(nc2d),m_cvars3d(nc3d)
+   integer(i_kind),  intent(inout) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
    real(r_single),   intent(inout) :: en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz)
    character(len=*), intent(in   ) :: filename
    character(len=*), optional, intent(in) :: filenamesfc
    logical,          intent(in   ) :: init_head
 
    ! Declare local variables
-   integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,latb2,lonb2
+   integer(i_kind) i,j,k,lonb,latb,levs,latb2,lonb2
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
    integer(i_kind) iret
    integer(i_kind) :: istop = 101
@@ -766,26 +729,18 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,ns
       m_cvars3d(k3)=kf+1
       do k=1,nsig
          kf=kf+1
-         jj=jas
          do j=1,nlon
-            jj=jj+1
-            ii=ias
             do i=1,nlat
-               ii=ii+1
-               en_full(ii,jj,kf,mas)=temp3(i,j,k,k3)
+               en_full(ias+i,jas+j,kf,mas)=temp3(i,j,k,k3)
             enddo
          enddo
-         ii=ias
          do i=1,nlat
-            ii=ii+1
-            en_full(ii,jasm,kf,mas)=en_full(ii,jaem-1,kf,mas)
-            en_full(ii,jaem,kf,mas)=en_full(ii,jasm+1,kf,mas)
+            en_full(ias+i,jasm,kf,mas)=en_full(ias+i,jaem-1,kf,mas)
+            en_full(ias+i,jaem,kf,mas)=en_full(ias+i,jasm+1,kf,mas)
          enddo
-         jj=jas-1
          do j=jasm,jaem
-           jj=jj+1
-           en_full(iasm,jj,kf,mas)=en_full(iasm+1,jj,kf,mas)
-           en_full(iaem,jj,kf,mas)=en_full(iaem-1,jj,kf,mas)
+           en_full(iasm,j,kf,mas)=en_full(iasm+1,j,kf,mas)
+           en_full(iaem,j,kf,mas)=en_full(iaem-1,j,kf,mas)
          end do
       enddo
    enddo
@@ -815,28 +770,20 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,ns
 
 !  move temp2 to en_full
    do k2=1,nc2d
-      m_cvars2dw(k2)=kf+1
+      m_cvars2d(k2)=kf+1
       kf=kf+1
-      jj=jas
       do j=1,nlon
-         jj=jj+1
-         ii=ias
          do i=1,nlat
-            ii=ii+1
-            en_full(ii,jj,kf,mas)=temp2(i,j,k2)
+            en_full(ias+i,jas+j,kf,mas)=temp2(i,j,k2)
          enddo
       enddo
-      ii=ias
       do i=1,nlat
-         ii=ii+1
-         en_full(ii,jasm,kf,mas)=en_full(ii,jaem-1,kf,mas)
-         en_full(ii,jaem,kf,mas)=en_full(ii,jasm+1,kf,mas)
+         en_full(ias+i,jasm,kf,mas)=en_full(ias+i,jaem-1,kf,mas)
+         en_full(ias+i,jaem,kf,mas)=en_full(ias+i,jasm+1,kf,mas)
       enddo
-      jj=jas-1
       do j=jasm,jaem
-        jj=jj+1
-        en_full(iasm,jj,kf,mas)=en_full(iasm+1,jj,kf,mas)
-        en_full(iaem,jj,kf,mas)=en_full(iaem-1,jj,kf,mas)
+        en_full(iasm,j,kf,mas)=en_full(iasm+1,j,kf,mas)
+        en_full(iaem,j,kf,mas)=en_full(iaem-1,j,kf,mas)
       end do
    enddo
 
@@ -844,7 +791,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,ns
 
 end subroutine parallel_read_nemsio_state_
 
-subroutine parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsig, &
+subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
                                         ias,jas,mas, &
                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                         filename)
@@ -872,13 +819,13 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsi
    integer(i_kind),  intent(in   ) :: nlon,nlat,nsig
    integer(i_kind),  intent(in   ) :: ias,jas,mas
    integer(i_kind),  intent(in   ) :: iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz
-   integer(i_kind),  intent(inout) :: m_cvars2dw(nc2d),m_cvars3d(nc3d)
+   integer(i_kind),  intent(inout) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
    real(r_single),   intent(inout) :: en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz)
    character(len=*), intent(in   ) :: filename
 
    ! Declare local variables
    logical :: file_exist
-   integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,kr,ierror
+   integer(i_kind) i,j,k,lonb,latb,levs,kr,ierror
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
    character(len=120) :: myname_ = 'parallel_read_gfsnc_state_'
    real(r_single),allocatable,dimension(:,:,:) :: rwork3d1, rwork3d2
@@ -928,8 +875,8 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsi
    enddo
    deallocate(rlons_tmp)
 
-   allocate(rwork3d1(nlon,(nlat-2),nsig))
    allocate(temp3(nlat,nlon,nsig,nc3d))
+   allocate(rwork3d1(nlon,(nlat-2),nsig))
    k3u=0 ; k3v=0 ; k3t=0 ; k3q=0 ; k3cw=0 ; k3oz=0
    do k3=1,nc3d
       if(trim(cvars3d(k3))=='t') then
@@ -978,13 +925,13 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsi
    if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3oz==0) &
       write(6,'(" WARNING, problem with one of k3-")')
 
-!$omp parallel do  schedule(dynamic,1) private(k,k3) 
+!$omp parallel do  schedule(dynamic,1) private(k,k3)
    do k=1,nsig
       call fillpoles_sv_(temp3(:,:,k,k3u),temp3(:,:,k,k3v),nlon,nlat,clons,slons)
    end do
 
 !  move temp3 to en_full
-!$omp parallel do  schedule(dynamic,1) private(k3,k,kf,j,jj,i,ii) 
+!$omp parallel do  schedule(dynamic,1) private(k3,k,kf,j,i) 
    do k3=1,nc3d
       if(k3 /= k3u .and. k3 /= k3v)then
          do k=1,nsig
@@ -995,26 +942,18 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsi
       m_cvars3d(k3)=kf+1
       do k=1,nsig
          kf=kf+1
-         jj=jas
          do j=1,nlon
-            jj=jj+1
-            ii=ias
             do i=1,nlat
-               ii=ii+1
-               en_full(ii,jj,kf,mas)=temp3(i,j,k,k3)
+               en_full(ias+i,jas+j,kf,mas)=temp3(i,j,k,k3)
             enddo
          enddo
-         ii=ias
          do i=1,nlat
-            ii=ii+1
-            en_full(ii,jasm,kf,mas)=en_full(ii,jaem-1,kf,mas)
-            en_full(ii,jaem,kf,mas)=en_full(ii,jasm+1,kf,mas)
+            en_full(ias+i,jasm,kf,mas)=en_full(ias+i,jaem-1,kf,mas)
+            en_full(ias+i,jaem,kf,mas)=en_full(ias+i,jasm+1,kf,mas)
          enddo
-         jj=jas-1
          do j=jasm,jaem
-           jj=jj+1
-           en_full(iasm,jj,kf,mas)=en_full(iasm+1,jj,kf,mas)
-           en_full(iaem,jj,kf,mas)=en_full(iaem-1,jj,kf,mas)
+           en_full(iasm,j,kf,mas)=en_full(iasm+1,j,kf,mas)
+           en_full(iaem,j,kf,mas)=en_full(iaem-1,j,kf,mas)
          end do
       enddo
    enddo
@@ -1031,27 +970,19 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsi
 
 !  move temp2 to en_full
          kf=kf+1
-         m_cvars2dw(k2)=kf
-         jj=jas
+         m_cvars2d(k2)=kf
          do j=1,nlon
-            jj=jj+1
-            ii=ias
             do i=1,nlat
-               ii=ii+1
-               en_full(ii,jj,kf,mas)=temp2(i,j)
+               en_full(ias+i,jas+j,kf,mas)=temp2(i,j)
             enddo
          enddo
-         ii=ias
          do i=1,nlat
-            ii=ii+1
-            en_full(ii,jasm,kf,mas)=en_full(ii,jaem-1,kf,mas)
-            en_full(ii,jaem,kf,mas)=en_full(ii,jasm+1,kf,mas)
+            en_full(ias+i,jasm,kf,mas)=en_full(ias+i,jaem-1,kf,mas)
+            en_full(ias+i,jaem,kf,mas)=en_full(ias+i,jasm+1,kf,mas)
          enddo
-         jj=jas-1
          do j=jasm,jaem
-           jj=jj+1
-           en_full(iasm,jj,kf,mas)=en_full(iasm+1,jj,kf,mas)
-           en_full(iaem,jj,kf,mas)=en_full(iaem-1,jj,kf,mas)
+           en_full(iasm,j,kf,mas)=en_full(iasm+1,j,kf,mas)
+           en_full(iaem,j,kf,mas)=en_full(iaem-1,j,kf,mas)
          end do
       end if
    enddo
@@ -1456,7 +1387,7 @@ subroutine create_sub2grid_info(s2gi,nsig,npe,s2gi_ref)
    use general_sub2grid_mod, only: sub2grid_info
    use general_sub2grid_mod, only: general_sub2grid_create_info
    implicit none
- 
+
    ! Declare passed variables
    type(sub2grid_info), intent(out  ) :: s2gi
    integer(i_kind),     intent(in   ) :: nsig
@@ -1474,7 +1405,7 @@ subroutine destroy_sub2grid_info(s2gi)
    use general_sub2grid_mod, only: sub2grid_info
    use general_sub2grid_mod, only: general_sub2grid_destroy_info
    implicit none
- 
+
    ! Declare passed variables
    type(sub2grid_info), intent(inout) :: s2gi
 

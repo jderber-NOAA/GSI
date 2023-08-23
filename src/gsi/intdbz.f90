@@ -97,7 +97,7 @@ subroutine intdbz_(dbzhead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: wrf_mass_regional, fv3_regional
@@ -124,10 +124,12 @@ subroutine intdbz_(dbzhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: sqr,sqs,sqg,sdbz,sqnr
   real(r_kind),pointer,dimension(:) :: rqr,rqs,rqg,rdbz,rqnr
   type(dbzNode), pointer :: dbzptr
+  logical physver1
 
 !  If no dbz obs type data return
   if(.not. associated(dbzhead))return
 
+  physver1 = mphyopt == 108 .and. l_use_dbz_directDA 
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0
@@ -136,31 +138,27 @@ subroutine intdbz_(dbzhead,rval,sval)
     call gsi_bundlegetpointer(rval,'dbz',rdbz,istatus);ier=istatus+ier
   else
     call gsi_bundlegetpointer(sval,'qr',sqr,istatus);ier=istatus+ier
+    call gsi_bundlegetpointer(rval,'qr',rqr,istatus);ier=istatus+ier
 
-    if (wrf_mass_regional .or. fv3_regional) then
+!   if (wrf_mass_regional .or. fv3_regional) then
       call gsi_bundlegetpointer(sval,'qs',sqs,istatus);ier=istatus+ier
       call gsi_bundlegetpointer(sval,'qg',sqg,istatus);ier=istatus+ier
 
-      ! direct reflectivity DA/ TM operator also uses qnr
-      if ( mphyopt == 108 .and. l_use_dbz_directDA ) then
-         call gsi_bundlegetpointer(sval,'qnr',sqnr,istatus);ier=istatus+ier
-      end if
-    end if
-
-
-    call gsi_bundlegetpointer(rval,'qr',rqr,istatus);ier=istatus+ier
-    if (wrf_mass_regional .or. fv3_regional) then
       call gsi_bundlegetpointer(rval,'qs',rqs,istatus);ier=istatus+ier
       call gsi_bundlegetpointer(rval,'qg',rqg,istatus);ier=istatus+ier
 
       ! direct reflectivity DA/ TM operator also uses qnr
-      if ( mphyopt == 108 .and. l_use_dbz_directDA ) then
+      if (physver1) then
+         call gsi_bundlegetpointer(sval,'qnr',sqnr,istatus);ier=istatus+ier
          call gsi_bundlegetpointer(rval,'qnr',rqnr,istatus);ier=istatus+ier
       end if
-    end if
+!   end if
+
+
   end if
 
   if(ier/=0)return
+
 
 
   dbzptr => dbzNode_typecast(dbzhead)
@@ -188,24 +186,25 @@ subroutine intdbz_(dbzhead,rval,sval)
        val = w1* sdbz(j1)+w2* sdbz(j2)+w3* sdbz(j3)+w4* sdbz(j4)+ &
              w5* sdbz(j5)+w6* sdbz(j6)+w7* sdbz(j7)+w8* sdbz(j8)
      else
-       qrtl = w1* sqr(j1)+w2* sqr(j2)+w3* sqr(j3)+w4* sqr(j4)+      &
-              w5* sqr(j5)+w6* sqr(j6)+w7* sqr(j7)+w8* sqr(j8)
-       if ( wrf_mass_regional .or. fv3_regional )then
+!      if ( wrf_mass_regional .or. fv3_regional )then 
+!      Only set up for this case currently
+         qrtl =  w1* sqr(j1)+w2* sqr(j2)+w3* sqr(j3)+w4* sqr(j4)+      &
+                 w5* sqr(j5)+w6* sqr(j6)+w7* sqr(j7)+w8* sqr(j8)
+
          qstl  = w1* sqs(j1)+w2* sqs(j2)+w3* sqs(j3)+w4* sqs(j4)+  &
                  w5* sqs(j5)+w6* sqs(j6)+w7* sqs(j7)+w8* sqs(j8)
           
          qgtl  = w1* sqg(j1)+w2* sqg(j2)+w3* sqg(j3)+w4* sqg(j4)+  &
                  w5* sqg(j5)+w6* sqg(j6)+w7* sqg(j7)+w8* sqg(j8)
 
+         val   = dbzptr%jqr*qrtl + dbzptr%jqs*qstl + dbzptr%jqg*qgtl
          ! direct reflectivity DA/ TM operator also uses qnr
-         if ( mphyopt == 108 .and. l_use_dbz_directDA ) then
-            qnrtl  = w1* sqnr(j1)+w2* sqnr(j2)+w3* sqnr(j3)+w4* sqnr(j4)+      &
-                     w5* sqnr(j5)+w6* sqnr(j6)+w7* sqnr(j7)+w8* sqnr(j8)
-            val   = (dbzptr%jqr)*qrtl + (dbzptr%jqs)*qstl + (dbzptr%jqg)*qgtl +(dbzptr%jqnr)*qnrtl
-         else ! Original calculation: qr, qs, and qg
-            val   = (dbzptr%jqr)*qrtl + (dbzptr%jqs)*qstl + (dbzptr%jqg)*qgtl
+         if ( physver1 ) then
+            qnrtl = w1* sqnr(j1)+w2* sqnr(j2)+w3* sqnr(j3)+w4* sqnr(j4)+      &
+                    w5* sqnr(j5)+w6* sqnr(j6)+w7* sqnr(j7)+w8* sqnr(j8)
+            val   = val+dbzptr%jqnr*qnrtl
          end if
-       end if
+ !     end if
   
      end if
 
@@ -256,19 +255,21 @@ subroutine intdbz_(dbzhead,rval,sval)
           rdbz(j7)=rdbz(j7)+w7*valdbz
           rdbz(j8)=rdbz(j8)+w8*valdbz
         else
-          valqr = dbzptr%jqr*grad
-          rqr(j1)=rqr(j1)+w1*valqr
-          rqr(j2)=rqr(j2)+w2*valqr
-          rqr(j3)=rqr(j3)+w3*valqr
-          rqr(j4)=rqr(j4)+w4*valqr
-          rqr(j5)=rqr(j5)+w5*valqr
-          rqr(j6)=rqr(j6)+w6*valqr
-          rqr(j7)=rqr(j7)+w7*valqr
-          rqr(j8)=rqr(j8)+w8*valqr
 
-          if ( wrf_mass_regional .or. fv3_regional )then
+!         if ( wrf_mass_regional .or. fv3_regional )then
+!      Only set up for this case currently
             valqs=dbzptr%jqs*grad
             valqg=dbzptr%jqg*grad
+            valqr=dbzptr%jqr*grad
+
+            rqr(j1)=rqr(j1)+w1*valqr
+            rqr(j2)=rqr(j2)+w2*valqr
+            rqr(j3)=rqr(j3)+w3*valqr
+            rqr(j4)=rqr(j4)+w4*valqr
+            rqr(j5)=rqr(j5)+w5*valqr
+            rqr(j6)=rqr(j6)+w6*valqr
+            rqr(j7)=rqr(j7)+w7*valqr
+            rqr(j8)=rqr(j8)+w8*valqr
 
             rqs(j1)=rqs(j1)+w1*valqs
             rqs(j2)=rqs(j2)+w2*valqs
@@ -289,7 +290,7 @@ subroutine intdbz_(dbzhead,rval,sval)
             rqg(j8)=rqg(j8)+w8*valqg
 
             ! direct Reflectivity DA/ TM operator also uses qnr
-            if ( mphyopt == 108 .and. l_use_dbz_directDA ) then
+            if ( physver1 ) then
                valqnr=dbzptr%jqnr*grad
 
                rqnr(j1)=rqnr(j1)+w1*valqnr
@@ -301,7 +302,7 @@ subroutine intdbz_(dbzhead,rval,sval)
                rqnr(j7)=rqnr(j7)+w7*valqnr
                rqnr(j8)=rqnr(j8)+w8*valqnr
             end if
-          end if
+!         end if
         end if
  
      endif

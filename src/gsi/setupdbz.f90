@@ -122,6 +122,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
                     ens_hx_dbz_cut,static_gsi_nopcp_dbz
   use obsmod, only: oberror_tune
+  use wrf_vars_mod, only : dbz_exist
   use m_obsNode, only: obsNode
   use m_dbzNode, only: dbzNode
   use m_dbzNode, only: dbzNode_appendto
@@ -267,7 +268,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
   real(r_kind) wrange
   integer(i_kind) numequal,numnotequal
  
-  logical:: debugging
+  logical:: debugging,debug
 
   type(dbzNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
@@ -315,9 +316,16 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
   type(obsLList),pointer,dimension(:):: dbzhead
   dbzhead => obsLL(:)
 
+  if(.not.(dbz_exist .or. wrf_mass_regional .or. fv3_regional))then
+    if(mype == 0)then
+      write(6,*) 'This version of GSI not currently set up to use dbz data'
+      write(6,*) 'Unless dbz_exit .or. wrf_mass_regional .or. fv3_regional'
+    end if
+    return
+  end if
+  debug=.false.
 !====================================================================================!
 !
-
 !******************************************************************************* 
 ! Flag is appiled since data arrays are different from direct reflectivity DA and others.
   if ( l_use_dbz_directDA ) then
@@ -1485,7 +1493,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
         close(lu_diag)
      end if
   end if
-  write(6,*)'mype, irefsmlobs,irejrefsmlobs are ',mype,' ',irefsmlobs, ' ',irejrefsmlobs
+  if(debug)write(6,*)'mype, irefsmlobs,irejrefsmlobs are ',mype,' ',irefsmlobs, ' ',irejrefsmlobs
 ! close(52) !simulated obs
 ! End of routine
   contains

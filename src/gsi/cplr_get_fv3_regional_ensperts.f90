@@ -83,12 +83,12 @@ contains
      integer(i_kind), intent(in   ):: nelen
      real(r_single),dimension(:,:,:),allocatable,intent(inout):: ps_bar
  
-     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,oz,rh
+     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,rh
      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)::w,ql,qi,qr,qg,qs,qnr,dbz
      real(r_kind),dimension(:,:,:),allocatable :: gg_u,gg_v,gg_tv,gg_rh
      real(r_kind),dimension(:,:,:),allocatable :: gg_w,gg_dbz,gg_qr,gg_qs, &
-                                                  gg_qi,gg_qg,gg_oz,gg_cwmr
+                                                  gg_qi,gg_qg,gg_cwmr
      real(r_kind),dimension(:,:),allocatable :: gg_ps
  
      real(r_single),pointer,dimension(:,:,:):: w3 =>NULL()
@@ -115,7 +115,7 @@ contains
      
      character(255) ensfilenam_str
      type(type_fv3regfilenameg)::fv3_filename 
-     integer(i_kind):: imem_start,n_fv3sar
+     integer(i_kind):: imem_start,n_fv3sar,iread_data
 
      if(n_ens/=(n_ens_gfs+n_ens_fv3sar)) then
         write(6,*)'wrong, the sum of  n_ens_gfs and n_ens_fv3sar not equal n_ens, stop'
@@ -275,91 +275,18 @@ contains
 
     do m=1,ntlevs_ens
 
-
-
- !
- ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
-        en_bar(m)%values=zero
- 
-        do n=imem_start,n_ens
-           en_perts(n,1,m)%valuesr4 = zero
-        enddo
- 
-        mm1=mype+1
-        kap1=rd_over_cp+one
-        kapr=one/rd_over_cp
-
-         if( parallelization_over_ensmembers ) then
-         if(n_ens_fv3sar>npe) then
-            parallelization_over_ensmembers=.false.
-130         format('Disabling parallelization_over_ensmembers because number of ensemble members (',I0,') is greater than number of MPI ranks (',I0,').')
-            if(mype==0) then
-               write(6,130) n_ens_fv3sar,npe
-            endif
-         endif
-         endif ! parallelization_over_ensmembers
-
-         if(parallelization_over_ensmembers .and. mype==0) then
-             write(6,'(I0,A)') mype,': will read ensemble data in parallel (parallelization_over_ensmembers=.true.)'
-         endif
-
-        if( parallelization_over_ensmembers )then
-           do n=1,n_ens_fv3sar
-              write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n
-22  format(a,'fv3SAR',i2.2,'_ens_mem',i3.3)
-              iope=(n-1)*npe/n_ens_fv3sar
-              ! DEFINE INPUT FILE NAME
-              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec'
+        if(mype == 0) then
+           do n_fv3sar=1,n_ens_fv3sar
+              write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n_fv3sar
+ ! DEFINE INPUT FILE NAME
+              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
               fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
               fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
-              fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
               fv3_filename%phyvars=trim(ensfilenam_str)//'-fv3_phyvars'
+              fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
               fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
               fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
 
-
-              if( mype==iope) then
-                 allocate(gg_u(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                 allocate(gg_v(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                 allocate(gg_tv(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                 allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                 allocate(gg_oz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                 allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
-                 if ( .not. if_model_dbz ) then
-                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz)
-                 else
-                    allocate(gg_w(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    allocate(gg_dbz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    allocate(gg_qr(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    allocate(gg_qs(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    allocate(gg_qi(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    allocate(gg_qg(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    allocate(gg_cwmr(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz, &
-                                                       g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_dbz=gg_dbz)
-                 end if
-              end if
-           end do
-           if(mype==0) then
-              write(6,'(I0,A)') mype,': reading ensemble data in parallel is done (parallelization_over_ensmembers=.true.)'
-           endif
-        end if
-        call MPI_Barrier(mpi_comm_world,ierror)
- !
- ! LOOP OVER ENSEMBLE MEMBERS 
-        do n_fv3sar=1,n_ens_fv3sar
-           n=n_ens_gfs+n_fv3sar
-           write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n_fv3sar
- ! DEFINE INPUT FILE NAME
-           fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
-           fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
-           fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
-           fv3_filename%phyvars=trim(ensfilenam_str)//'-fv3_phyvars'
-           fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
-           fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
-           fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
-
-           if(mype == 0) then
               call nc_check(nf90_open(fv3_filename%dynvars,nf90_nowrite,loc_id), &
               "nf90 open ",trim(fv3_filename%dynvars))
               call nc_check(nf90_inquire(loc_id,formatNum=ncfmt), &
@@ -387,53 +314,127 @@ contains
               endif
               call nc_check(nf90_close(loc_id), &
               "nf90 close ",trim(fv3_filename%tracers))
+           end do
+        endif
+ ! 
+
+ !
+ ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
+        en_bar(m)%values=zero
+ 
+        do n=imem_start,n_ens
+           en_perts(n,1,m)%valuesr4 = zero
+        enddo
+ 
+        mm1=mype+1
+        kap1=rd_over_cp+one
+        kapr=one/rd_over_cp
+
+        if( parallelization_over_ensmembers ) then
+         if(n_ens_fv3sar>npe) then
+            parallelization_over_ensmembers=.false.
+130         format('Disabling parallelization_over_ensmembers because number of ensemble members (',I0,') is greater than number of MPI ranks (',I0,').')
+            if(mype==0) then
+               write(6,130) n_ens_fv3sar,npe
+            endif
+         endif
+         if(parallelization_over_ensmembers .and. mype==0) then
+             write(6,'(I0,A)') mype,': will read ensemble data in parallel (parallelization_over_ensmembers=.true.)'
+         endif
+        endif ! parallelization_over_ensmembers
+
+
+        if( parallelization_over_ensmembers )then
+           iread_data= 0
+           do n=1,n_ens_fv3sar
+              iope=(n-1)*npe/n_ens_fv3sar
+              if( mype==iope) iread_data=n
+           end do
+           n=iread_data
+           if(n > 0)then
+              ! DEFINE INPUT FILE NAME
+              write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n
+22            format(a,'fv3SAR',i2.2,'_ens_mem',i3.3)
+              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec'
+              fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
+              fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
+              fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
+              fv3_filename%phyvars=trim(ensfilenam_str)//'-fv3_phyvars'
+              fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
+              fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
+
+
+              allocate(gg_u(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+              allocate(gg_v(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+              allocate(gg_tv(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+              allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+              allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
+              if ( .not. if_model_dbz ) then
+                 call this%general_read_fv3_regional_parallel_over_ens(mype,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh)
+              else
+                 allocate(gg_w(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_dbz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_qr(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_qs(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_qi(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_qg(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_cwmr(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 call this%general_read_fv3_regional_parallel_over_ens(mype,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,&
+                                                    g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_dbz=gg_dbz)
+              end if
+           end if
+           if(mype==0) then
+              write(6,'(I0,A)') mype,': reading ensemble data in parallel is done (parallelization_over_ensmembers=.true.)'
            endif
+        end if
+!       call MPI_Barrier(mpi_comm_world,ierror)
+ !
+ ! LOOP OVER ENSEMBLE MEMBERS 
+        do n_fv3sar=1,n_ens_fv3sar
+           n=n_ens_gfs+n_fv3sar
+
  ! 
  ! READ ENEMBLE MEMBERS DATA
            if( .not. parallelization_over_ensmembers )then
+              write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n_fv3sar
+ ! DEFINE INPUT FILE NAME
+              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
+              fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
+              fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
+              fv3_filename%phyvars=trim(ensfilenam_str)//'-fv3_phyvars'
+              fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
+              fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
+              fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
               if (mype == 0) write(6,'(a,a)') &
                  'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
               if (.not. (l_use_dbz_directDA .or. if_model_dbz) ) then ! Read additional hydrometers and w for dirZDA
-                 call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz)
+                 call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh)
               else
                  if( l_use_dbz_directDA ) then
-                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,  &
                                                         g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
                  else if( if_model_dbz )then
-                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,  &
                                                         g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
                  end if
               end if
-           end if
- 
-           if( parallelization_over_ensmembers )then 
+           else if( parallelization_over_ensmembers )then 
               iope=(n_fv3sar-1)*npe/n_ens_fv3sar
-              if(mype==iope) then
-                 write(0,'(I0,A,I0,A)') mype,': scatter member ',n_fv3sar,' to other ranks...'
-                 if( if_model_dbz )then
-                    call this%parallel_read_fv3_step2(mype,iope,&
-                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
-                          g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz,&
-                          gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,&
-                          gg_rh=gg_rh,gg_w=gg_w,gg_dbz=gg_dbz,gg_qr=gg_qr,&
-                          gg_qs=gg_qs,gg_qi=gg_qi,gg_qg=gg_qg,gg_ql=gg_cwmr)
-                 else
-                    call this%parallel_read_fv3_step2(mype,iope,&
-                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,g_oz=oz, &
-                          gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,gg_rh=gg_rh)
-                 end if
+              if( if_model_dbz )then
+                 call this%parallel_read_fv3_step2(mype,iope,&
+                       ps,u,v,tv,rh,gg_ps,gg_tv,gg_u,gg_v,gg_rh,&
+                       g_ql=ql,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz, &
+                       gg_ql=gg_cwmr,gg_w=gg_w,gg_qr=gg_qr,gg_qs=gg_qs,gg_qi=gg_qi,&
+                       gg_qg=gg_qg,gg_dbz=gg_dbz)
+                 if(mype == iope)deallocate(gg_ps,gg_tv,gg_u,gg_v,gg_rh,gg_cwmr,gg_w, &
+                                            gg_qr,gg_qs,gg_qi,gg_qg,gg_dbz)
               else
-                 if( if_model_dbz )then
-                    call this%parallel_read_fv3_step2(mype,iope,&
-                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
-                          g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz)
-                 else
-                    call this%parallel_read_fv3_step2(mype,iope,&
-                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,g_oz=oz)
-                 endif
+                 call this%parallel_read_fv3_step2(mype,iope,&
+                       ps,u,v,tv,rh,gg_ps,gg_tv,gg_u,gg_v,gg_rh)
+                 if(mype == iope)deallocate(gg_ps,gg_tv,gg_u,gg_v,gg_rh)
               endif
 
-              call MPI_Barrier(mpi_comm_world,ierror)
+!             call MPI_Barrier(mpi_comm_world,ierror)
            end if
 
  ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
@@ -454,6 +455,7 @@ contains
  
                  case('sf','SF')
     
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -465,6 +467,7 @@ contains
  
                  case('vp','VP')
  
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -476,6 +479,7 @@ contains
  
                  case('t','T')
  
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -487,6 +491,7 @@ contains
  
                  case('q','Q')
  
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -496,21 +501,11 @@ contains
                        end do
                     end do
  
-                 case('oz','OZ')
- 
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = oz(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+oz(j,i,k)
-                          end do
-                       end do
-                    end do
- 
 ! save additional ensemble varaible data for direct reflectivity DA
 
                  case('ql','QL')
 
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -522,6 +517,7 @@ contains
 
                  case('qi','QI')
 
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -533,6 +529,7 @@ contains
 
                  case('qr','QR')
 
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -544,6 +541,7 @@ contains
 
                  case('qs','QS')
 
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -555,6 +553,7 @@ contains
 
                  case('qg','QG')
 
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -566,6 +565,7 @@ contains
 
                  case('qnr','QNR')
 
+!$omp parallel do  schedule(static,1) private(i,j,k)
                       do k=1,grd_ens%nsig
                          do i=1,grd_ens%lon2
                             do j=1,grd_ens%lat2
@@ -583,6 +583,7 @@ contains
                       end do
 
                  case('w','W')
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -593,6 +594,7 @@ contains
                     end do
 
                  case('dbz','DBZ')
+!$omp parallel do  schedule(static,1) private(i,j,k)
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
                           do j=1,grd_ens%lat2
@@ -670,12 +672,13 @@ contains
            end if
         end do
  
-        call mpi_barrier(mpi_comm_world,ierror)
+!       call mpi_barrier(mpi_comm_world,ierror)
  !
  !
  ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
         sig_norm=sqrt(weight_ens_fv3sar/max(one,n_ens_fv3sar-one))
  
+!$omp parallel do  schedule(static,1) private(i,n)
         do n=imem_start,n_ens
            do i=1,nelen
               en_perts(n,1,m)%valuesr4(i)=(en_perts(n,1,m)%valuesr4(i)-en_bar(m)%values(i))*sig_norm
@@ -684,7 +687,7 @@ contains
 
     enddo ! it 4d loop
  ! CALCULATE ENSEMBLE SPREAD
-    write_ens_sprd=.true.
+!   write_ens_sprd=.true.
     if(write_ens_sprd ) then
         call this%ens_spread_dualres_regional(mype,en_perts,nelen)
         call mpi_barrier(mpi_comm_world,ierror) ! do we need this mpi_barrier here? 
@@ -709,7 +712,7 @@ contains
 
   end subroutine get_fv3_regional_ensperts_run
   
-  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz, &
+  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh, &
                                         g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w,g_dbz)
   !$$$  subprogram documentation block
   !     first compied from general_read_arw_regional           .      .    .                                       .
@@ -732,20 +735,13 @@ contains
   !
   !$$$ end documentation block
   
-    use netcdf, only: nf90_nowrite
-    use netcdf, only: nf90_open,nf90_close
-    use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
-    use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
-    use netcdf, only: nf90_format_netcdf4
     use kinds, only: r_kind,r_single,i_kind
     use gridmod, only: eta1_ll,eta2_ll
-    use constants, only: zero,one,fv,zero_single,one_tenth,h300
+    use constants, only: zero,one,fv
     use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
     use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
 
-    use mpimod, only: mpi_comm_world,mpi_rtype
     use gsi_rfv3io_mod,only: type_fv3regfilenameg
-    use gsi_rfv3io_mod,only:n2d 
     use constants, only: half,zero
     use gsi_rfv3io_mod, only: gsi_fv3ncdf_read 
     use gsi_rfv3io_mod, only: gsi_fv3ncdf_read_v1
@@ -769,7 +765,7 @@ contains
 ! Declare passed variables
     class(get_fv3_regional_ensperts_class), intent(inout) :: this
     type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
-    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh,g_oz
+    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr,g_dbz
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_qs,g_qg,g_qnr,g_w
 
@@ -820,9 +816,6 @@ contains
     tracers=fv3_filenameginput%tracers
     sfcdata=fv3_filenameginput%sfcdata
     couplerres=fv3_filenameginput%couplerres
-
-
-     
      
     if (allocated(fv3lam_ens_io_dynmetvars2d_nouv) ) then   
        call gsi_bundlecreate(gsibundle_fv3lam_ens_dynvar_nouv,grid_ens,'gsibundle_fv3lam_ens_dynvar_nouv', istatus,&
@@ -871,7 +864,6 @@ contains
     ier=0
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'tsen' ,g_tsen ,istatus );ier=ier+istatus
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'q'  ,g_q ,istatus );ier=ier+istatus
-    call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'oz'  ,g_oz ,istatus );ier=ier+istatus
     if (l_use_dbz_directDA .or. if_model_dbz) then
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'ql' ,g_ql ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qi' ,g_qi ,istatus );ier=ier+istatus
@@ -903,6 +895,7 @@ contains
     endif
      
 !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!$omp parallel do  schedule(static,1) private(i,j,k)
     do k=1,grd_ens%nsig
        do j=1,grd_ens%lon2
           do i=1,grd_ens%lat2
@@ -913,6 +906,7 @@ contains
     if (.not.q_hyb_ens) then
       ice=.true.
       iderivative=0
+!$omp parallel do  schedule(static,1) private(i,j,k)
       do k=1,grd_ens%nsig
         kp=k+1
         do j=1,grd_ens%lon2
@@ -922,6 +916,7 @@ contains
         end do
       end do
       call genqsat(g_rh,g_tsen(1,1,1),g_prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+!$omp parallel do  schedule(static,1) private(i,j,k)
       do k=1,grd_ens%nsig
         do j=1,grd_ens%lon2
           do i=1,grd_ens%lat2
@@ -930,6 +925,7 @@ contains
         end do
       end do
     else
+!$omp parallel do  schedule(static,1) private(i,j,k)
         do k=1,grd_ens%nsig
           do j=1,grd_ens%lon2
             do i=1,grd_ens%lat2
@@ -940,49 +936,44 @@ contains
     end if
 
 
+    if (l_use_dbz_directDA .or. if_model_dbz) then
 ! CV transform
-    do k=1,grd_ens%nsig
-       do i=1,grd_ens%lon2
-          do j=1,grd_ens%lat2
-             if (l_use_cvpqx) then
-                ! Qr/qr
-                if (g_qr(j,i,k) <= 1.0E-5_r_kind) then
-                    g_qr(j,i,k) = 1.0E-5_r_kind
+!$omp parallel do  schedule(static,1) private(i,j,k)
+       do k=1,grd_ens%nsig
+          do i=1,grd_ens%lon2
+             do j=1,grd_ens%lat2
+                if (l_use_cvpqx) then
+                   ! Qr/qr
+                   g_qr(j,i,k) = max(1.0E-5_r_kind,g_qr(j,i,k))
+                   if (cvpqx_pval > 0.0_r_kind ) then !CVpq
+                       g_qr(j,i,k)=((g_qr(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
+                   else  ! CVlogq
+                       g_qr(j,i,k) = log(g_qr(j,i,k))
+                   end if
+                   ! Qs/qs
+                   g_qs(j,i,k) = max(1.0E-5_r_kind,g_qs(j,i,k))
+                   if (cvpqx_pval > 0.0_r_kind ) then !CVpq
+                       g_qs(j,i,k)=((g_qs(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
+                   else  ! CVlogq
+                       g_qs(j,i,k) = log(g_qs(j,i,k))
+                   end if
+                   ! Qg/qg
+                   g_qg(j,i,k) = max(1.0E-5_r_kind,g_qg(j,i,k))
+                   if (cvpqx_pval > 0.0_r_kind ) then !CVpq
+                      g_qg(j,i,k)=((g_qg(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
+                   else  ! CVlogq
+                      g_qg(j,i,k) = log(g_qg(j,i,k))
+                   end if
                 end if
-                if (cvpqx_pval > 0.0_r_kind ) then !CVpq
-                    g_qr(j,i,k)=((g_qr(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
-                else  ! CVlogq
-                    g_qr(j,i,k) = log(g_qr(j,i,k))
+                if ( cld_nt_updt > 0 .and. l_cvpnr) then ! CVpnr
+                   ! Qnr/qnr
+                   g_qnr(j,i,k) = max(one,g_qnr(j,i,k))
+                   g_qnr(j,i,k)=((g_qnr(j,i,k)**cvpnr_pval)-1)/cvpnr_pval
                 end if
-                ! Qs/qs
-                if (g_qs(j,i,k) <= 1.0E-5_r_kind) then
-                    g_qs(j,i,k) = 1.0E-5_r_kind
-                end if
-                if (cvpqx_pval > 0.0_r_kind ) then !CVpq
-                    g_qs(j,i,k)=((g_qs(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
-                else  ! CVlogq
-                    g_qs(j,i,k) = log(g_qs(j,i,k))
-                end if
-                ! Qg/qg
-                if (g_qg(j,i,k) <= 1.0E-5_r_kind) then
-                   g_qg(j,i,k) = 1.0E-5_r_kind
-                end if
-                if (cvpqx_pval > 0.0_r_kind ) then !CVpq
-                   g_qg(j,i,k)=((g_qg(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
-                else  ! CVlogq
-                   g_qg(j,i,k) = log(g_qg(j,i,k))
-                end if
-             end if
-             if ( cld_nt_updt > 0 .and. l_cvpnr) then ! CVpnr
-                ! Qnr/qnr
-                if (g_qnr(j,i,k) < one) then
-                   g_qnr(j,i,k) = one
-                end if
-                g_qnr(j,i,k)=((g_qnr(j,i,k)**cvpnr_pval)-1)/cvpnr_pval
-             end if
+             enddo
           enddo
        enddo
-    enddo
+    end if
     call gsi_bundledestroy(gsibundle_fv3lam_ens_dynvar_nouv)
     call gsi_bundledestroy(gsibundle_fv3lam_ens_tracer_nouv)
     call gsi_bundledestroy(gsibundle_fv3lam_ens_phyvar_nouv)
@@ -990,7 +981,7 @@ contains
   return       
   end subroutine general_read_fv3_regional
 
-  subroutine general_read_fv3_regional_parallel_over_ens(this,iope,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz, &
+  subroutine general_read_fv3_regional_parallel_over_ens(this,iope,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh, &
                                                   g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w,g_dbz)
   !$$$  subprogram documentation block
   !     first compied from general_read_arw_regional           .      .    .                                       .
@@ -1051,7 +1042,7 @@ contains
     class(get_fv3_regional_ensperts_class), intent(inout) :: this
     integer(i_kind),                               intent (in)   :: iope
     type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
-    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh,g_oz
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr,g_dbz
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),optional,intent(out)::g_qs,g_qg,g_qnr,g_w
 
@@ -1105,27 +1096,23 @@ contains
        if(fv3sar_ensemble_opt == 0) then
           if (if_model_dbz) then
              call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,fv3_filenameginput,delp=g_delp,tsen=g_tsen,w=g_w,iope=iope)
-             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,oz=g_oz,ql=g_ql,qr=g_qr,&
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,ql=g_ql,qr=g_qr,&
                                                   qs=g_qs,qi=g_qi,qg=g_qg,iope=iope)
              call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fv3_filenameginput,dbz=g_dbz,iope=iope)
           else
              call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,fv3_filenameginput,delp=g_delp,tsen=g_tsen,iope=iope)         
-             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,oz=g_oz,iope=iope)
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,iope=iope)
           end if
-       else
-          write(6,*) "Warning: we can only grab fields from restart files not cold start files for ensemble!"
-       endif
-       
-   
-       if (fv3sar_ensemble_opt == 0) then 
           g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
           do i=grd_ens%nsig,1,-1
              g_prsi(:,:,i)=g_delp(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
           enddo
           g_ps(:,:)=g_prsi(:,:,1)
-   
+       else
+          write(6,*) "Warning: we can only grab fields from restart files not cold start files for ensemble!"
        endif
-        
+       
+   
    !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
        do k=1,grd_ens%nsig
           do j=1,grd_ens%nlon
@@ -1169,10 +1156,10 @@ contains
 
 
   subroutine parallel_read_fv3_step2(this,mype,iope, &
-       g_ps,g_u,g_v,g_tv,g_rh,g_ql,g_oz,g_w,g_qr,g_qs,g_qi,&
-       g_qg,g_dbz, &
-       gg_ps,gg_tv,gg_u,gg_v,gg_rh,gg_w,gg_dbz,gg_qr,&
-       gg_qs,gg_qi,gg_qg,gg_ql)
+       g_ps,g_u,g_v,g_tv,g_rh, &
+       gg_ps,gg_tv,gg_u,gg_v,gg_rh, &
+       g_ql,g_w,g_qr,g_qs,g_qi,g_qg,g_dbz, &
+       gg_ql,gg_w,gg_qr,gg_qs,gg_qi,gg_qg,gg_dbz)
 
   !$$$  subprogram documentation block
   !     .
@@ -1201,7 +1188,6 @@ contains
     use hybrid_ensemble_parameters, only: grd_ens
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     use kinds, only: r_kind,r_single,i_kind
-    use constants, only: half,zero
    
     implicit none
 
@@ -1209,19 +1195,18 @@ contains
   ! Declare passed variables
       class(get_fv3_regional_ensperts_class), intent(inout) :: this
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out):: &
-                                                    g_u,g_v,g_tv,g_rh,g_ql,g_oz
-      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out),optional::&
-                                  g_w,g_qr,g_qs,g_qi,g_qg,g_dbz
-      integer(i_kind), intent(in) :: mype, iope
+                                                    g_u,g_v,g_tv,g_rh
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
-
       ! The gg_ arrays are only sent by the rank doing I/O (mype==iope)
-      real(r_kind),optional,dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig) :: &
+      real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),intent(in) :: &
            gg_u,gg_v,gg_tv,gg_rh
+      real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon),intent(in) :: gg_ps
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out),optional::&
+                                  g_ql,g_w,g_qr,g_qs,g_qi,g_qg,g_dbz
+      integer(i_kind), intent(in) :: mype, iope
 
-      real(r_kind),optional,dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig) :: &
+      real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),intent(in),optional :: &
            gg_w,gg_dbz,gg_qr,gg_qs,gg_qi,gg_qg,gg_ql
-      real(r_kind),optional,dimension(grd_ens%nlat,grd_ens%nlon):: gg_ps
 
   ! Declare local variables
       real(r_kind),allocatable,dimension(:):: wrk_send_2d
@@ -1230,51 +1215,62 @@ contains
   ! transfer data from root to subdomains on each task
   ! scatterv used, since full grids exist only on root task.
     allocate(wrk_send_2d(grd_ens%itotsub))
-    g_oz=zero
+
   ! first PS (output from fill_regional_2d is a column vector with a halo)
     if(mype==iope) call this%fill_regional_2d(gg_ps,wrk_send_2d)
     call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
     g_ps,grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
   ! then TV,U,V,RH
     do k=1,grd_ens%nsig
-       if (mype==iope) then
-          call this%fill_regional_2d(gg_tv(:,:,k),wrk_send_2d)
-       endif
+       if (mype==iope) call this%fill_regional_2d(gg_tv(:,:,k),wrk_send_2d)
        call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
        g_tv(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
        if (mype==iope) call this%fill_regional_2d(gg_u(1,1,k),wrk_send_2d)
        call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
        g_u(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
        if (mype==iope) call this%fill_regional_2d(gg_v(1,1,k),wrk_send_2d)
        call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
        g_v(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
        if (mype==iope) call this%fill_regional_2d(gg_rh(1,1,k),wrk_send_2d)
        call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
        g_rh(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
-       if( present(g_dbz) )then
+
+    enddo
+    if( present(g_dbz) )then
+       do k=1,grd_ens%nsig
           if (mype==iope) call this%fill_regional_2d(gg_w(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
           g_w(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
           if (mype==iope) call this%fill_regional_2d(gg_dbz(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
           g_dbz(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
           if (mype==iope) call this%fill_regional_2d(gg_qr(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
           g_qr(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
           if (mype==iope) call this%fill_regional_2d(gg_qs(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
           g_qs(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
           if (mype==iope) call this%fill_regional_2d(gg_qi(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
           g_qi(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
           if (mype==iope) call this%fill_regional_2d(gg_qg(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
           g_qg(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+
           if (mype==iope) call this%fill_regional_2d(gg_ql(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
           g_ql(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
-       end if
-    enddo
+       enddo
+    end if
     deallocate(wrk_send_2d)
   end subroutine parallel_read_fv3_step2
 

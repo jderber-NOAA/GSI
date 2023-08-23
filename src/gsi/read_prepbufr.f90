@@ -2740,32 +2740,25 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! METAR cloud observation
               else if(metarcldobs) then
+                 cdata_all(:,iout)=-99999.0_r_kind    ! Default missing values for all observations
                  cdata_all(1,iout)=rstation_id    !  station ID
                  cdata_all(2,iout)=dlon           !  grid relative longitude
                  cdata_all(3,iout)=dlat           !  grid relative latitude
                  cdata_all(4,iout)=stnelev        !  station  elevation
                  if(metarvis(1,1) < r0_1_bmiss) then
                     cdata_all(5,iout)=metarvis(1,1)  !  visibility (m)
-                 else
-                    cdata_all(5,iout) = -99999.0_r_kind
                  endif
                  do kk=1, 6
                     if(metarcld(1,kk) < r0_1_bmiss) then
                        cdata_all(5+kk,iout) =metarcld(1,kk)  !  cloud amount
-                    else
-                       cdata_all(5+kk,iout) = -99999.0_r_kind
                     endif
                     if(metarcld(2,kk) < r0_1_bmiss) then
                        cdata_all(11+kk,iout)=metarcld(2,kk)  !  cloud bottom height (m)
-                    else
-                       cdata_all(11+kk,iout)= -99999.0_r_kind
                     endif
                  enddo
                  do kk=1, 3
                     if(metarwth(1,kk) < r0_1_bmiss) then
                        cdata_all(17+kk,iout)=metarwth(1,kk)  !  weather
-                    else
-                       cdata_all(17+kk,iout)= -99999.0_r_kind
                     endif
                  enddo
                  cdata_all(21,iout)=timeobs  !  time observation
@@ -2777,8 +2770,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !         from cloud analysis
                  if(metarvis(2,1)  < 1.e10_r_kind) then
                     cdata_all(24,iout)=obsdat(3,1)-metarvis(2,1)  ! temperature - dew point
-                 else
-                    cdata_all(24,iout)=-99999.0_r_kind  ! temperature - dew point
                  endif
                  cdata_all(25,iout)=nc                     ! type
                  cdata_all(26,iout)=dlon_earth_deg         ! earth relative longitude (degrees)

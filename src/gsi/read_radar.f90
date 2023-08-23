@@ -271,7 +271,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   integer(i_kind) ntdrvr_thin2_foreswp,ntdrvr_thin2_aftswp
   integer(i_kind) maxout,maxdata
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
-  integer(i_kind),allocatable,dimension(:):: isort
 
   real(r_single) elevmax,elevmin
   real(r_single) thisrange,thisazimuth,thistilt
@@ -357,9 +356,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      hdrstr(2)='PTID YEAR MNTH DAYS HOUR MINU SECO CLAT CLON FLVLST ANAZ ANEL'
   end if
 
-  allocate(cdata_all(maxdat,maxobs),isort(maxobs))
+  allocate(cdata_all(maxdat,maxobs))
 
-  isort = 0
   cdata_all=zero
 
   if (trim(infile) /= 'tldplrbufr' .and. trim(infile) /= 'tldplrso') then
@@ -2440,17 +2438,14 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                     ntdrvr_thin2=ntdrvr_thin2+1
                     cycle
                  endif
-                 if(iiout > 0) isort(iiout)=0
                  if (ndata > ntmp) then
                     nodata=nodata+1
                  endif
-                 isort(icntpnt)=iout
 
               else
                  ndata =ndata+1
                  nodata=nodata+1
                  iout=ndata
-                 isort(icntpnt)=iout
               endif
 
               if(ndata > maxobs) then
@@ -2965,17 +2960,14 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                           ntdrvr_thin2=ntdrvr_thin2+1
                           cycle
                        endif
-                       if(iiout > 0) isort(iiout)=0
                        if (ndata > ntmp) then
                           nodata=nodata+1
                        endif
-                       isort(icntpnt)=iout
    
                     else
                        ndata =ndata+1
                        nodata=nodata+1
                        iout=ndata
-                       isort(icntpnt)=iout
                     endif
 
                     if(ndata > maxobs) then
@@ -3296,7 +3288,6 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   integer(i_kind) nsuper2_in,nsuper2_kept
   real(r_kind) errzmax
 
-  integer(i_kind),allocatable,dimension(:):: isort
 
 ! following variables are for fore/aft separation
   integer(i_kind) irec
@@ -3318,9 +3309,8 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   dlatmin=huge(dlatmin)
   dlonmin=huge(dlonmin)
 
-  allocate(cdata_all(maxdat,maxobs),isort(maxobs))
+  allocate(cdata_all(maxdat,maxobs))
 
-  isort = 0
   cdata_all=zero
 
 ! Initialize variables
@@ -3704,7 +3694,6 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   logical :: luse 
   integer(i_kind) iyref,imref,idref,ihref,nout 
 
-  integer(i_kind),allocatable,dimension(:):: isort
 
 ! following variables are for fore/aft separation
   integer(i_kind) irec
@@ -3739,9 +3728,8 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   dlonmax=-huge(dlonmax)
   dlatmin=huge(dlatmin)
   dlonmin=huge(dlonmin)
-  allocate(cdata_all(maxdat,maxobs),isort(maxobs))
+  allocate(cdata_all(maxdat,maxobs))
 
-  isort = 0
   cdata_all=zero
   xscale=1000._r_kind
   xscalei=one/xscale
@@ -3775,7 +3763,6 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   ntdrvr_thin2=0
   maxout=0
   maxdata=0
-  isort=0
   icntpnt=0
   nout=0
   if(loop==0) outmessage='level 2 superobs:'
@@ -4079,16 +4066,13 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
              ntdrvr_thin2=ntdrvr_thin2+1
              cycle
           endif
-          if(iiout > 0) isort(iiout)=0
           if (ndata > ntmp) then
              nodata=nodata+1
           endif
-          isort(icntpnt)=iout
         else
           ndata =ndata+1
           nodata=nodata+1
           iout=ndata
-          isort(icntpnt)=iout
         endif
 !####################       Data thinning       ###################
         if(.not. oneobtest) then
@@ -4188,7 +4172,6 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   deallocate(cdata_all)
   if (radar_sites) deallocate(rtable,rsite,ruse)  
   deallocate(zl_thin)
-  deallocate(isort)
   return
 
 end subroutine read_radar_l2rw

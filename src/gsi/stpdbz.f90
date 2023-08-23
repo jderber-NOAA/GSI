@@ -103,40 +103,38 @@ subroutine stpdbz(dbzhead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: sqr,sqs,sqg,sqnr,sdbz
   real(r_kind),pointer,dimension(:) :: rqr,rqs,rqg,rqnr,rdbz
   type(dbzNode), pointer :: dbzptr
+  logical physver1
 
   out=zero_quad
 
 !  If no dbz data return
   if(.not. associated(dbzhead))return
+  physver1=l_use_dbz_directDA .and. mphyopt == 108 
 
 ! Retrieve pointers
-! Simply return if any pointer not found
   ier=0
   if(dbz_exist)then
     call gsi_bundlegetpointer(sval,'dbz',sdbz,istatus);ier=istatus+ier
     call gsi_bundlegetpointer(rval,'dbz',rdbz,istatus);ier=istatus+ier
   else
     call gsi_bundlegetpointer(sval,'qr',sqr,istatus);ier=istatus+ier
+    call gsi_bundlegetpointer(rval,'qr',rqr,istatus);ier=istatus+ier
 
-    if (wrf_mass_regional .or. fv3_regional ) then
+!   if (wrf_mass_regional .or. fv3_regional ) then
       call gsi_bundlegetpointer(sval,'qs',sqs,istatus);ier=istatus+ier
       call gsi_bundlegetpointer(sval,'qg',sqg,istatus);ier=istatus+ier
-      ! direct reflectivity DA/ TM operator also uses qnr
-      if ( mphyopt == 108 .and. l_use_dbz_directDA ) then
-         call gsi_bundlegetpointer(sval,'qnr',sqnr,istatus);ier=istatus+ier
-      end if
-    end if
 
-    call gsi_bundlegetpointer(rval,'qr',rqr,istatus);ier=istatus+ier
-    if (wrf_mass_regional .or. fv3_regional ) then
       call gsi_bundlegetpointer(rval,'qs',rqs,istatus);ier=istatus+ier
       call gsi_bundlegetpointer(rval,'qg',rqg,istatus);ier=istatus+ier
       ! direct reflectivity DA/ TM operator also uses qnr
-      if ( mphyopt == 108 .and. l_use_dbz_directDA ) then
+      if (physver1) then
+         call gsi_bundlegetpointer(sval,'qnr',sqnr,istatus);ier=istatus+ier
          call gsi_bundlegetpointer(rval,'qnr',rqnr,istatus);ier=istatus+ier
       end if
-    end if
+!   end if
+
   end if
+! Simply return if any pointer not found
   if(ier/=0)return
 
   dbzptr => dbzNode_typecast(dbzhead)
@@ -169,13 +167,14 @@ subroutine stpdbz(dbzhead,rval,sval,out,sges,nstep)
                      dbzptr%res
 
            else
-             valqr=(w1* rqr(j1)+w2* rqr(j2)+w3* rqr(j3)+w4* rqr(j4)+       &
-                    w5* rqr(j5)+w6* rqr(j6)+w7* rqr(j7)+w8* rqr(j8))
+!            if (wrf_mass_regional .or. fv3_regional)then
+!      Only set up for this case currently
+               valqr=(w1* rqr(j1)+w2* rqr(j2)+w3* rqr(j3)+w4* rqr(j4)+       &
+                      w5* rqr(j5)+w6* rqr(j6)+w7* rqr(j7)+w8* rqr(j8))
   
-             qrcur=(w1* sqr(j1)+w2* sqr(j2)+w3* sqr(j3)+w4* sqr(j4)+       &
-                    w5* sqr(j5)+w6* sqr(j6)+w7* sqr(j7)+w8* sqr(j8))
+               qrcur=(w1* sqr(j1)+w2* sqr(j2)+w3* sqr(j3)+w4* sqr(j4)+       &
+                      w5* sqr(j5)+w6* sqr(j6)+w7* sqr(j7)+w8* sqr(j8))
 
-             if (wrf_mass_regional .or. fv3_regional)then
                valqs=(w1* rqs(j1)+w2* rqs(j2)+w3* rqs(j3)+w4* rqs(j4)+ &
                       w5* rqs(j5)+w6* rqs(j6)+w7* rqs(j7)+w8* rqs(j8))
 
@@ -189,7 +188,8 @@ subroutine stpdbz(dbzhead,rval,sval,out,sges,nstep)
                       w5* sqg(j5)+w6* sqg(j6)+w7* sqg(j7)+w8* sqg(j8))
 
                ! direct reflectivity DA/ TM operator also uses qnr
-               if ( l_use_dbz_directDA .and. mphyopt == 108 ) then
+               if (physver1) then
+
                   valqnr=(w1* rqnr(j1)+w2* rqnr(j2)+w3* rqnr(j3)+w4* rqnr(j4)+ &
                           w5* rqnr(j5)+w6* rqnr(j6)+w7* rqnr(j7)+w8* rqnr(j8))
 
@@ -198,20 +198,18 @@ subroutine stpdbz(dbzhead,rval,sval,out,sges,nstep)
 
                   valdbz = valqr * dbzptr%jqr + valqs *  dbzptr%jqs +     &
                            valqg * dbzptr%jqg + valqnr * dbzptr%jqnr
+
+                  dbzcur = qrcur * dbzptr%jqr + qscur * dbzptr%jqs +      &
+                           qgcur * dbzptr%jqg + qnrcur * dbzptr%jqnr - dbzptr%res
                else ! original calculation ; qr, qs, and qg
                   valdbz = valqr * dbzptr%jqr + valqs *  dbzptr%jqs +     &
                            valqg * dbzptr%jqg
-               end if
-          
-               ! direct reflectivity DA/ TM operator also uses qnr
-               if ( l_use_dbz_directDA .and. mphyopt == 108 ) then
-                  dbzcur = qrcur * dbzptr%jqr + qscur * dbzptr%jqs +      &
-                              qgcur * dbzptr%jqg + qnrcur * dbzptr%jqnr - dbzptr%res
-               else
+
                   dbzcur = qrcur * dbzptr%jqr + qscur * dbzptr%jqs +      &
                            qgcur * dbzptr%jqg - dbzptr%res
                end if
-             end if  
+          
+!            end if  
 
            end if
 

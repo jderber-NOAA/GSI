@@ -123,7 +123,7 @@ contains
 
 !*************************************************************************
 !   Initialize local variables
-    write(6,*)"now ibin is used as a placeholder ",ibin 
+    if(mype_out == 0)write(6,*)"now ibin is used as a placeholder ",ibin 
     allocate(istartloc(npe),jstartloc(npe))
     mm1=mype+1
 

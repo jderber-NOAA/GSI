@@ -513,6 +513,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 
 !   1.  compute x,y,z at cell cornor from grid_lon, grid_lat
 
+!$omp parallel do  schedule(static,1) private(i,j) 
   do j=1,ny+1
      do i=1,nx+1
         x(i,j)=cos(grid_lat(i,j)*deg2rad)*cos(grid_lon(i,j)*deg2rad)
@@ -523,6 +524,8 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 
 !  2   find angles to E-W and N-S for U edges
   sq180=180._r_kind**2 
+!$omp parallel do  schedule(static,1) &
+!$omp private(i,j,rlat,rlon,diff,xr,yr,zr,xu,yu,zu,uval,ewval,nsval)
   do j=1,ny+1
      do i=1,nx
 !      center lat/lon of the edge 
@@ -551,6 +554,8 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   enddo
  
 !  3   find angles to E-W and N-S for V edges
+!$omp parallel do  schedule(static,1) &
+!$omp private(i,j,rlat,rlon,diff,xr,yr,zr,xv,yv,zv,vval,ewval,nsval)
   do j=1,ny
      do i=1,nx+1
         rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
@@ -611,21 +616,25 @@ subroutine earthuv2fv3(u,v,nx,ny,u_out,v_out)
 
 
 !!!!!!! earth u/v to covariant u/v
-  j=1
-  do i=1,nx
-     u_out(i,j)= u(i,j)*cangu(i,j)+v(i,j)*sangu(i,j)
+
+!$omp parallel do  schedule(static,1) private(i,j)
+  do j=1,ny+1
+     if(j == 1)then
+        do i=1,nx
+          u_out(i,j)= u(i,j)*cangu(i,j)+v(i,j)*sangu(i,j)
+        end do
+     else if(j == ny+1)then
+        do i=1,nx
+           u_out(i,j)= u(i,j-1)*cangu(i,j)+v(i,j-1)*sangu(i,j)
+        end do
+     else
+        do i=1,nx
+           u_out(i,j)=half   *( (u(i,j)+u(i,j-1))*cangu(i,j)+(v(i,j)+v(i,j-1))*sangu(i,j) )
+        end do
+     end if
   end do
 
-  do j=2,ny
-     do i=1,nx
-        u_out(i,j)=half   *( (u(i,j)+u(i,j-1))*cangu(i,j)+(v(i,j)+v(i,j-1))*sangu(i,j) )
-     end do
-  end do
-  j=ny
-  do i=1,nx
-     u_out(i,j+1)= u(i,j)*cangu(i,j+1)+v(i,j)*sangu(i,j+1)
-  end do
-
+!$omp parallel do  schedule(static,1) private(i,j)
   do j=1,ny
      v_out(1,j)=u(1,j)*cangv(1,j)+v(1,j)*sangv(1,j)
      do i=2,nx
@@ -668,6 +677,7 @@ subroutine fv3uv2earth(u,v,nx,ny,u_out,v_out)
   real(r_kind),intent(  out) :: u_out(nx,ny),v_out(nx,ny)
   integer(i_kind) i,j
 
+!$omp parallel do  schedule(static,1) private(i,j)
   do j=1,ny
      do i=1,nx
         u_out(i,j)=half *( (u(i,j)*sangv(i,j)-v(i,j)*sangu(i,j))/(cangu(i,j)*sangv(i,j)-sangu(i,j)*cangv(i,j)) &
@@ -736,17 +746,19 @@ subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma,rev_flg)
   endif
 !!!!!!!!! interpolate to A grid & reverse ij for array a(lat,lon)
   if(bilinear)then ! bilinear interpolation
+!$omp parallel do  schedule(static,1) private(i,j)
      do j=1,ma
         do i=1,na
            a(j,i)=fv3dx1(i,j)*(fv3dy1(i,j)*b(fv3ix (i,j),fv3jy(i,j))+fv3dy(i,j)*b(fv3ix (i,j),fv3jyp(i,j))) &
-              +fv3dx (i,j)*(fv3dy1(i,j)*b(fv3ixp(i,j),fv3jy(i,j))+fv3dy(i,j)*b(fv3ixp(i,j),fv3jyp(i,j)))
+                 +fv3dx (i,j)*(fv3dy1(i,j)*b(fv3ixp(i,j),fv3jy(i,j))+fv3dy(i,j)*b(fv3ixp(i,j),fv3jyp(i,j)))
         end do
      end do
   else  ! inverse-distance weighting average 
+!$omp parallel do  schedule(static,1) private(i,j)
      do j=1,ma
         do i=1,na
-           a(j,i)=fv3dx(i,j)*b(fv3ix (i,j),fv3jy(i,j))+fv3dy(i,j)*b(fv3ix (i,j),fv3jyp(i,j)) &
-              +fv3dx1(i,j)*b(fv3ixp(i,j),fv3jy(i,j))+fv3dy1(i,j)*b(fv3ixp(i,j),fv3jyp(i,j))
+           a(j,i)=fv3dx (i,j)*b(fv3ix (i,j),fv3jy(i,j))+fv3dy (i,j)*b(fv3ix (i,j),fv3jyp(i,j)) &
+                 +fv3dx1(i,j)*b(fv3ixp(i,j),fv3jy(i,j))+fv3dy1(i,j)*b(fv3ixp(i,j),fv3jyp(i,j))
         end do
      end do
   endif
@@ -796,6 +808,7 @@ subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
 !!!!!!!!!! output in reverse E-W, N-S and reversed i,j !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      nybp=nyb+1
      nxbp=nxb+1
+!$omp parallel do  schedule(static,1) private(i,j,ir,ijr,jr)
      do i=1,nyb
         ir=nybp-i
         ijr=(ir-1)*nxb
@@ -807,6 +820,7 @@ subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
      end do
   else
 !!!!!!!!!! output order as input W-E S-N and (i:lat,j:lon) !!!!!!!!!!!
+!$omp parallel do  schedule(static,1) private(i,j,ijr)
      do i=1,nyb
         ijr=(i-1)*nxb
         do j=1,nxb
@@ -870,6 +884,7 @@ subroutine rotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
   real(r_kind) x,y,z, xt,yt,zt, xtt,ytt,ztt
   integer(i_kind) i,j
 
+!$omp parallel do  schedule(static,1) private(i,j,x,y,z,xt,yt,zt,xtt,ytt,ztt)
   do j=1,ny
      do i=1,nx
 !   1.  compute x,y,z from rlon_in, rlat_in
@@ -926,6 +941,7 @@ subroutine unrotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
 
   real(r_kind) x,y,z, xt,yt,zt, xtt,ytt,ztt
   integer(i_kind) i,j
+!$omp parallel do  schedule(static,1) private(i,j,x,y,z,xt,yt,zt,xtt,ytt,ztt)
   do j=1,ny
      do i=1,nx
         xtt=cos(rlat_out(i,j)*deg2rad)*cos(rlon_out(i,j)*deg2rad)

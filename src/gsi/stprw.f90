@@ -133,7 +133,7 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'w',rw,istatus)
-  if (if_use_w_vr.and.istatus==0) then
+  if (include_w.and.if_use_w_vr.and.istatus==0) then
      include_w=.true.
   else
      include_w=.false.
@@ -176,10 +176,10 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
            end if
 
 !          Gradient - residual
-            facrw=(w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)+w5* su(j5)+  &
-                   w6* su(j6)+w7* su(j7)+w8* su(j8))*rwptr%cosazm_costilt+  &
-                  (w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)+w5* sv(j5)+  &
-                   w6* sv(j6)+w7* sv(j7)+w8* sv(j8))*rwptr%sinazm_costilt
+           facrw=(w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)+w5* su(j5)+  &
+                  w6* su(j6)+w7* su(j7)+w8* su(j8))*rwptr%cosazm_costilt+  &
+                 (w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)+w5* sv(j5)+  &
+                  w6* sv(j6)+w7* sv(j7)+w8* sv(j8))*rwptr%sinazm_costilt
            if(include_w) then
               facrw=facrw+(w1*sw(j1)+ w2*sw(j2)+ w3*sw(j3)+ w4*sw(j4)+w5*sw(j5)+&
                            w6*sw(j6)+ w7*sw(j7)+ w8*sw(j8))*rwptr%sintilt

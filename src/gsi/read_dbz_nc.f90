@@ -139,7 +139,6 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
 
   logical :: luse
   integer(i_kind) maxout,maxdata
-  integer(i_kind),allocatable,dimension(:):: isort
        
   !--General declarations
   integer(i_kind) :: ierror,i,j,k,nvol, &
@@ -214,17 +213,12 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   ilon=2
   ilat=3
   
-  maxobs=50000000    !value taken from read_radar.f90 
-
-  !--Allocate cdata_all array
-   allocate(cdata_all(maxdat,maxobs),isort(maxobs))
    rmesh=rmesh_dbz
    zmesh=zmesh_dbz
 
 
    maxout=0
    maxdata=0
-   isort=0
    ntdrvr_thin2=0
    icntpnt=0
    zflag=0
@@ -339,6 +333,54 @@ fileopen: if (if_input_exist) then
   rmins_an=mins_an             !convert to real number
  
   ivar = 1
+
+  maxobs = 0
+  ILOOP2 : &
+  do i = 1, dims(ivar,1)
+    do j = 1, dims(ivar,2)
+
+      thislon = lon(i,j)
+      thislat = lat(i,j)
+
+      if(doradaroneob) then
+        thislat=oneoblat
+        thislon=oneoblon
+      endif
+   
+      !-Check format of longitude and correct if necessary
+                  
+      if(thislon>=r360) thislon=thislon-r360
+      if(thislon<zero ) thislon=thislon+r360
+                  
+      !-Convert back to radians                 
+          
+      thislat = thislat*deg2rad
+      thislon = thislon*deg2rad
+                  
+      !find grid relative lat lon locations of earth lat lon
+                  
+      call tll2xy(thislon,thislat,dlon,dlat,outside)
+ 
+      if (outside) cycle
+
+      do k = 1, dims(ivar,3)
+
+! Missing data in the input file have the value -999.0
+        if( dbzQC(i,j,k) <= -900.0_r_kind ) then
+           !--Extend no precip observations to missing data fields?
+           !  May help suppress spurious convection if a problem.
+           if (.not. missing_to_nopcp .or. dbzQC(i,j,k) <= -1000.0_r_kind) cycle
+        end if
+        maxobs=maxobs+1
+        if(doradaroneob .and. (dbzQC(i,j,k) > -99.0_r_kind) ) exit ILOOP2
+      end do    ! k
+    end do    ! j
+  end do ILOOP2    ! i
+ 
+  write(6,*) 'maxobs',dims(ivar,1)*dims(ivar,2)*dims(ivar,3),maxobs
+
+  !--Allocate cdata_all array
+  allocate(cdata_all(maxdat,maxobs))
   
   ILOOP : &
   do i = 1, dims(ivar,1)
@@ -450,7 +492,6 @@ fileopen: if (if_input_exist) then
      
            zobs = hgt
      
-     
            ntmp=ndata  ! counting moved to map3gridS
            timedif=abs(t4dv) !don't know about this
            crit1 = timedif/r6+half
@@ -466,16 +507,13 @@ fileopen: if (if_input_exist) then
               ntdrvr_thin2=ntdrvr_thin2+1
               cycle
            endif
-           if(iiout > 0) isort(iiout)=0
            if (ndata > ntmp) then
               nodata=nodata+1
            endif
-           isort(icntpnt)=iout
         else
            ndata =ndata+1
            nodata=nodata+1
            iout=ndata
-           isort(icntpnt)=iout
         endif
      
         !!end modified for thinning

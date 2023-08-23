@@ -2227,21 +2227,19 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     integer(i_kind) kbgn,kend,len
     logical   :: phy_smaller_domain
     integer(i_kind) gfile_loc,iret,var_id
-    integer(i_kind) nz,nzp1,mm1,nx_phy
+    integer(i_kind) nz,nzp1,nx_phy
 ! for io_layout > 1
     real(r_kind),allocatable,dimension(:,:):: uu2d_layout
     integer(i_kind) :: nio
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
 
-    mm1=mype+1
     nloncase=grd_ionouv%nlon
     nlatcase=grd_ionouv%nlat
     nxcase=nx
     nycase=ny
     kbgn=grd_ionouv%kbegin_loc
     kend=grd_ionouv%kend_loc
-    allocate(uu2d(nxcase,nycase))
 
     if(fv3_io_layout_y > 1) then
       allocate(gfile_loc_layout(0:fv3_io_layout_y-1))
@@ -2262,6 +2260,7 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
         call stop2(333)
       endif
     endif
+    allocate(uu2d(nxcase,nycase))
     do ilevtot=kbgn,kend
       vgsiname=grd_ionouv%names(1,ilevtot)
       if(trim(vgsiname)=='delzinc') cycle  !delzinc is not read from DZ ,it's started from hydrostatic height 
@@ -2331,6 +2330,8 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
       call fv3_h_to_ll(uu2d,hwork(1,:,:,ilevtot),nxcase,nycase,nloncase,nlatcase,grid_reverse_flag)
     enddo  ! ilevtot
 
+    deallocate (uu2d)
+
     if(fv3_io_layout_y > 1) then
       do nio=1,fv3_io_layout_y-1
         iret=nf90_close(gfile_loc_layout(nio))
@@ -2340,7 +2341,6 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
       iret=nf90_close(gfile_loc)
     endif
 
-    deallocate (uu2d)
     call general_grid2sub(grd_ionouv,hwork,cstate_nouv%values)
     
     return
@@ -2403,9 +2403,7 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     integer(i_kind) var_id
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) gfile_loc,iret
-    integer(i_kind) nzp1,mm1
-
-    mm1=mype+1
+    integer(i_kind) nzp1
 
     nloncase=grd_ionouv%nlon
     nlatcase=grd_ionouv%nlat
@@ -2508,7 +2506,7 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
     integer(i_kind) kbgn,kend
 
     integer(i_kind) gfile_loc,iret
-    integer(i_kind) nz,nzp1,mm1
+    integer(i_kind) nz,nzp1
 
 ! for fv3_io_layout_y > 1
     real(r_kind),allocatable,dimension(:,:):: u2d_layout,v2d_layout
@@ -2516,7 +2514,6 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
 
-    mm1=mype+1
     nloncase=grd_uv%nlon
     nlatcase=grd_uv%nlat
     nxcase=nx
@@ -2682,14 +2679,13 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin)
 
     integer(i_kind) var_id
     integer(i_kind) gfile_loc,iret
-    integer(i_kind) j,nzp1,mm1
+    integer(i_kind) j,nzp1
     integer(i_kind) ilev,ilevtot,inative
     integer(i_kind) nxcase,nycase
     integer(i_kind) us_countloc(3),us_startloc(3)
     integer(i_kind) vw_countloc(3),vw_startloc(3)
 
     allocate (worksub(2,grd_uv%lat2,grd_uv%lon2,grd_uv%nsig))
-    mm1=mype+1
     nloncase=grd_uv%nlon
     nlatcase=grd_uv%nlat
     nxcase=nx
@@ -2750,7 +2746,7 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin)
 end subroutine gsi_fv3ncdf_readuv_v1
 
 subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
-           delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz,iope)
+           delp,tsen,w,q,ql,qr,qs,qi,qg,dbz,oz,iope)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf_read_ens_parallel_over_ens    
@@ -2791,7 +2787,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
     character(*),intent(in):: filenamein
     type (type_fv3regfilenameg),intent(in) ::fv3filenamegin
     integer(i_kind)   ,intent(in   ) :: iope
-    real(r_kind),dimension(nlat,nlon,nsig),intent(out),optional:: delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz
+    real(r_kind),dimension(nlat,nlon,nsig),intent(out),optional:: delp,tsen,w,q,ql,qr,qs,qi,qg,dbz,oz
 
     character(len=max_varname_length) :: varname
     character(len=max_varname_length) :: name
@@ -2802,7 +2798,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
     integer(i_kind) ilev,ilevtot,inative,ivar
     integer(i_kind) kbgn,kend
     integer(i_kind) gfile_loc,iret,var_id
-    integer(i_kind) nz,nzp1,mm1,len,nx_phy
+    integer(i_kind) len,nx_phy
     logical  :: phy_smaller_domain
 ! for io_layout > 1
     real(r_kind),allocatable,dimension(:,:):: uu2d_layout
@@ -2810,15 +2806,14 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
 
-    mm1=mype+1
-    nloncase=nlon
-    nlatcase=nlat
-    nxcase=nx
-    nycase=ny
-    kbgn=1
-    kend=nsig
 
     if( mype == iope )then
+       nloncase=nlon
+       nlatcase=nlat
+       nxcase=nx
+       nycase=ny
+       kbgn=1
+       kend=nsig
        allocate(uu2d(nxcase,nycase))
        if( present(delp).or.present(tsen).or.present(w) )then  ! dynvars
           if( present(w) )then
@@ -2828,17 +2823,25 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
              allocate(varname_files(2))
              varname_files = (/'T   ','delp'/)
           end if
-       end if
-       if( present(q).or.present(ql).or.present(qr) )then ! tracers
+       else if( present(q).or.present(ql).or.present(qr) )then ! tracers
           if(present(qr))then
-             allocate(varname_files(7))
-             varname_files = (/'sphum  ','o3mr   ','liq_wat','ice_wat','rainwat','snowwat','graupel'/)
+             if(present(oz))then
+               allocate(varname_files(7))
+               varname_files = (/'sphum  ','o3mr   ','liq_wat','ice_wat','rainwat','snowwat','graupel'/)
+             else
+               allocate(varname_files(6))
+               varname_files = (/'sphum  ','liq_wat','ice_wat','rainwat','snowwat','graupel'/)
+             end if
           else
-             allocate(varname_files(2))
-             varname_files = (/'sphum',' o3mr'/)
+             if(present(oz))then
+               allocate(varname_files(2))
+               varname_files = (/'sphum',' o3mr'/)
+             else
+               allocate(varname_files(1))
+               varname_files = (/'sphum'/)
+             end if
           end if
-       end if
-       if( present(dbz) )then            ! phyvars: dbz
+       else if( present(dbz) )then            ! phyvars: dbz
           allocate(varname_files(1))
           varname_files = (/'ref_f3d'/)
        end if
@@ -2864,10 +2867,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
        endif
        do ivar = 1, size(varname_files)
           do ilevtot=kbgn,kend
-             ilev=ilevtot
-             nz=nsig
-             nzp1=nz+1
-             inative=nzp1-ilev
+             inative=nsig+1-ilevtot
              startloc=(/1,1,inative/)
              countloc=(/nxcase,nycase,1/)
              varname = trim(varname_files(ivar))
@@ -2885,7 +2885,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
                    countloc_tmp=(/nxcase-6,nycase-6,1/)
                    phy_smaller_domain = .true.
                 end if
-                startloc_tmp=(/1,1,ilev/)
+                startloc_tmp=(/1,1,ilevtot/)
              end if
 
              if(fv3_io_layout_y > 1) then
@@ -2918,36 +2918,32 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
              call fv3_h_to_ll(uu2d,hwork(:,:,ilevtot),nxcase,nycase,nloncase,nlatcase,grid_reverse_flag)
           enddo  ! ilevtot
           if( present(delp).or.present(tsen).or.present(w) )then  ! dynvars
-              if(ivar == 1)then
+              if(trim(adjustl(varname)) == 'T')then
                  tsen = hwork
-              else if(ivar == 2)then
+              else if(trim(adjustl(varname)) == 'delp')then
                  delp = hwork
-              end if
-              if( present(w) .and. ivar == 3 )then
+              else if( present(w) .and. trim(adjustl(varname)) == 'W')then
                  w = hwork
               end if
-          end if
-          if( present(q).or.present(ql).or.present(qr) )then ! tracers
-            if(ivar == 1)then
+          else if( present(q).or.present(ql).or.present(qr) )then ! tracers
+            if(trim(adjustl(varname)) == 'sphum')then
                q = hwork
-            else if(ivar == 2)then
-               oz = hwork
-            end if
-            if(present(qr))then
-              if(ivar == 3)then
+            else if(present(qr))then
+              if(trim(adjustl(varname)) == 'liq_wat')then
                  ql = hwork
-              else if(ivar == 4)then
+              else if(trim(adjustl(varname)) == 'ice_wat')then
                  qi = hwork
-              else if(ivar == 5)then
+              else if(trim(adjustl(varname)) == 'rainwat')then
                  qr = hwork
-              else if(ivar == 6)then
+              else if(trim(adjustl(varname)) == 'snowwat')then
                  qs = hwork
-              else if(ivar == 7)then
+              else if(trim(adjustl(varname)) == 'graupel')then
                  qg = hwork
               end if
+            else if(trim(adjustl(varname)) == 'o3mr')then
+               oz = hwork
             end if
-          end if
-          if( present(dbz) )then            ! phyvars: dbz
+          else if( present(dbz) )then            ! phyvars: dbz
             dbz = hwork
           end if
 
@@ -3009,7 +3005,6 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
     integer(i_kind), intent(in)   :: iope
 
-    real(r_kind),dimension(2,nlat,nlon,nsig):: hwork
     character(:), allocatable:: filenamein
     real(r_kind),allocatable,dimension(:,:):: u2d,v2d
     real(r_kind),allocatable,dimension(:,:):: uc2d,vc2d
@@ -3017,11 +3012,10 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
     integer(i_kind) nlatcase,nloncase
     integer(i_kind) nxcase,nycase
     integer(i_kind) u_countloc(3),u_startloc(3),v_countloc(3),v_startloc(3)
-    integer(i_kind) inative,ilev,ilevtot
+    integer(i_kind) inative,ilevtot
     integer(i_kind) kbgn,kend
 
     integer(i_kind) gfile_loc,iret
-    integer(i_kind) nz,nzp1,mm1
 
 ! for fv3_io_layout_y > 1
     real(r_kind),allocatable,dimension(:,:):: u2d_layout,v2d_layout
@@ -3029,14 +3023,13 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
 
-    mm1=mype+1
-    nloncase=nlon
-    nlatcase=nlat
-    nxcase=nx
-    nycase=ny
-    kbgn=1
-    kend=nsig
     if( mype == iope )then
+       nloncase=nlon
+       nlatcase=nlat
+       nxcase=nx
+       nycase=ny
+       kbgn=1
+       kend=nsig
        allocate(u2d(nxcase,nycase+1))
        allocate(v2d(nxcase+1,nycase))
        allocate(uc2d(nxcase,nycase))
@@ -3063,12 +3056,7 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
           endif
        endif
        do ilevtot=kbgn,kend
-          ilev=ilevtot
-          nz=nsig
-          nzp1=nz+1
-          inative=nzp1-ilev
-          u_countloc=(/nxcase,nycase+1,1/)
-          v_countloc=(/nxcase+1,nycase,1/)
+          inative=nsig+1-ilevtot
           u_startloc=(/1,1,inative/)
           v_startloc=(/1,1,inative/)
 
@@ -3090,6 +3078,8 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
                 deallocate(v2d_layout)
              enddo
           else
+             u_countloc=(/nxcase,nycase+1,1/)
+             v_countloc=(/nxcase+1,nycase,1/)
              call check( nf90_inq_varid(gfile_loc,'u',u_grd_VarId) )
              iret=nf90_get_var(gfile_loc,u_grd_VarId,u2d,start=u_startloc,count=u_countloc)
              call check( nf90_inq_varid(gfile_loc,'v',v_grd_VarId) )
@@ -3119,8 +3109,8 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
      !       and the last input parameter for fv3_h_to_ll is alway true:
      !
      !
-          call fv3_h_to_ll(uc2d,hwork(1,:,:,ilevtot),nxcase,nycase,nloncase,nlatcase,.true.)
-          call fv3_h_to_ll(vc2d,hwork(2,:,:,ilevtot),nxcase,nycase,nloncase,nlatcase,.true.)
+          call fv3_h_to_ll(uc2d,ges_u(:,:,ilevtot),nxcase,nycase,nloncase,nlatcase,.true.)
+          call fv3_h_to_ll(vc2d,ges_v(:,:,ilevtot),nxcase,nycase,nloncase,nlatcase,.true.)
        enddo ! ilevtot
        if(fv3_io_layout_y > 1) then
           do nio=0,fv3_io_layout_y-1
@@ -3131,8 +3121,6 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
           iret=nf90_close(gfile_loc)
        endif
        deallocate(u2d,v2d,uc2d,vc2d)
-       ges_u = hwork(1,:,:,:)
-       ges_v = hwork(2,:,:,:)
     end if ! mype
 
 end subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens
@@ -3574,7 +3562,7 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
 
     real(r_kind),dimension(2,grd_uv%nlat,grd_uv%nlon,grd_uv%kbegin_loc:grd_uv%kend_alloc):: hwork
     integer(i_kind) :: ugrd_VarId,gfile_loc,vgrd_VarId
-    integer(i_kind) i,j,mm1,k,nzp1
+    integer(i_kind) i,j,k,nzp1
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) nlatcase,nloncase
@@ -3593,8 +3581,6 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
 
-    mm1=mype+1
-    
     nloncase=grd_uv%nlon
     nlatcase=grd_uv%nlat
     nxcase=nx
@@ -3782,7 +3768,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     integer(i_kind) :: gfile_loc
     integer(i_kind) :: u_wgrd_VarId,v_wgrd_VarId
     integer(i_kind) :: u_sgrd_VarId,v_sgrd_VarId
-    integer(i_kind) i,j,mm1,k,nzp1
+    integer(i_kind) i,j,k,nzp1
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot
     real(r_kind),allocatable,dimension(:,:,:,:):: worksub
@@ -3796,7 +3782,6 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     integer(i_kind) uw_countloc(3),us_countloc(3),uw_startloc(3),us_startloc(3)
     integer(i_kind) vw_countloc(3),vs_countloc(3),vw_startloc(3),vs_startloc(3)
 
-    mm1=mype+1
     nloncase=grd_uv%nlon
     nlatcase=grd_uv%nlat
     nxcase=nx
@@ -4131,7 +4116,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) :: VarId,gfile_loc
-    integer(i_kind) mm1,nzp1,len,nx_phy,iret
+    integer(i_kind) nzp1,len,nx_phy,iret
     logical  :: phy_smaller_domain
     real(r_kind),allocatable,dimension(:,:):: work_a
     real(r_kind),allocatable,dimension(:,:):: work_b
@@ -4144,7 +4129,6 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
 
-    mm1=mype+1
     ! Convert from subdomain to full horizontal field distributed among
     ! processors
     call general_sub2grid(grd_ionouv,cstate_nouv%values,hwork)
@@ -4355,7 +4339,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) :: VarId,gfile_loc
-    integer(i_kind) mm1,nzp1
+    integer(i_kind) nzp1
     real(r_kind),allocatable,dimension(:,:):: work_a
     real(r_kind),allocatable,dimension(:,:):: work_b
     real(r_kind),allocatable,dimension(:,:):: workb2,worka2
@@ -4363,7 +4347,6 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
 
 
-    mm1=mype+1
     nloncase=grd_ionouv%nlon
     nlatcase=grd_ionouv%nlat
 
@@ -4439,6 +4422,7 @@ subroutine reverse_grid_r(grid,nx,ny,nz)
     real(r_kind)                      :: tmp_grid(nx,ny)
     integer(i_kind)                   :: i,j,k
 !
+!$omp parallel do  schedule(static,1) private(i,j,k,tmp_grid)
     do k=1,nz
        tmp_grid(:,:)=grid(:,:,k)
        do j=1,ny
@@ -4464,6 +4448,7 @@ subroutine reverse_grid_r_uv(grid,nx,ny,nz)
     real(r_kind)                     :: tmp_grid(nx,ny)
     integer(i_kind)                  :: i,j,k
 !
+!$omp parallel do  schedule(static,1) private(i,j,k,tmp_grid)
     do k=1,nz
        tmp_grid(:,:)=grid(:,:,k)
        do j=1,ny
@@ -4545,6 +4530,7 @@ subroutine convert_qx_to_cvpqx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue)
        end if
     end if
 
+!$omp parallel do  schedule(static,1) private(i,j,k,qr_min,qr_thrshd,qs_min,qs_thrshd,qg_min,qg_thrshd)
     do k=1,nsig
       do i=1,lon2
         do j=1,lat2
@@ -4641,23 +4627,24 @@ subroutine convert_nx_to_cvpnx(qnx_arr,cvpnr,cvpnr_pvalue)
     integer(i_kind)                   :: i, j, k
 !
 
-!   print info message: CVpnr
-    if (mype==0 .and. cvpnr)then
-       write(6,*)'read_fv3_netcdf_guess: convert qnx with power transform .'
-    end if
 
-    do k=1,nsig
-      do i=1,lon2
-        do j=1,lat2
+    if (cvpnr) then
+!   print info message: CVpnr
+       if (mype==0)then
+          write(6,*)'read_fv3_netcdf_guess: convert qnx with power transform .'
+       end if
+!$omp parallel do  schedule(static,1) private(i,j,k)
+      do k=1,nsig
+        do i=1,lon2
+          do j=1,lat2
 
 !          Treatment on qnx ; power transform
-           if (cvpnr) then
               qnx_arr(j,i,k)=((max(qnx_arr(j,i,k),1.0E-2_r_kind)**cvpnr_pvalue)-1)/cvpnr_pvalue
-           endif
 
+          end do
         end do
       end do
-    end do
+    endif
 end subroutine convert_nx_to_cvpnx
 
 subroutine convert_cvpqx_to_qx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue)
@@ -4707,9 +4694,6 @@ subroutine convert_cvpqx_to_qx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue)
 
     integer(i_kind)               :: i, j, k, it
 
-    real(r_kind), dimension(lat2,lon2,nsig) :: tmparr_qr, tmparr_qs
-    real(r_kind), dimension(lat2,lon2,nsig) :: tmparr_qg
-
     real(r_kind) :: qr_min, qs_min, qg_min
     real(r_kind) :: qr_tmp, qs_tmp, qg_tmp
     real(r_kind) :: qr_thrshd, qs_thrshd, qg_thrshd
@@ -4732,11 +4716,8 @@ subroutine convert_cvpqx_to_qx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue)
        end if
     end if
 
-!   Initialized temporary arrays with ges. Will be recalculated later if cvlogq or cvpq is used
-    tmparr_qr =qr_arr
-    tmparr_qs =qs_arr
-    tmparr_qg =qg_arr
-
+!$omp parallel do  schedule(static,1) private(i,j,k,qr_min,qr_thrshd,qs_min,qs_thrshd,qg_min,qg_thrshd) &
+!$omp                                 private(qr_tmp,qs_tmp,qg_tmp)
     do k=1,nsig
       do i=1,lon2
         do j=1,lat2
@@ -4825,17 +4806,14 @@ subroutine convert_cvpqx_to_qx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue)
 
            end if         ! cvpqx
 
-           tmparr_qr(j,i,k)=qr_tmp
-           tmparr_qs(j,i,k)=qs_tmp
-           tmparr_qg(j,i,k)=qg_tmp
+           qr_arr(j,i,k)=qr_tmp
+           qs_arr(j,i,k)=qs_tmp
+           qg_arr(j,i,k)=qg_tmp
 
         end do
       end do
     end do
 
-    qr_arr=tmparr_qr
-    qs_arr=tmparr_qs
-    qg_arr=tmparr_qg
 
 end subroutine convert_cvpqx_to_qx
 
@@ -4889,7 +4867,6 @@ subroutine convert_cvpnx_to_nx(qnx_arr,cvpnr,cvpnr_pvalue,cloud_nt_updt,q_arr,qr
     real(r_kind), intent(in     )    :: qr_arr(lat2,lon2,nsig)
     real(r_kind), intent(in     )    :: ps_arr(lat2,lon2)
 
-    real(r_kind), dimension(lat2,lon2,nsig) :: tmparr_qnr
     integer(i_kind)                   :: i, j, k, it
     real(r_kind)                      :: qnr_tmp
 
@@ -4907,8 +4884,8 @@ subroutine convert_cvpnx_to_nx(qnx_arr,cvpnr,cvpnr_pvalue,cloud_nt_updt,q_arr,qr
     end if
 
 ! Initialized temp arrays with ges.
-    tmparr_qnr=qnx_arr
 
+!$omp parallel do  schedule(static,1) private(i,j,k,qnr_tmp,T1D,P1D,Q1D,RHO,QR1D)
     do k=1,nsig
       do i=1,lon2
         do j=1,lat2
@@ -4927,19 +4904,18 @@ subroutine convert_cvpnx_to_nx(qnx_arr,cvpnr,cvpnr_pvalue,cloud_nt_updt,q_arr,qr
 
           else
             if (cvpnr) then ! power transform
-              qnr_tmp=max((cvpnr_pvalue*qnx_arr(j,i,k)+1)**(1/cvpnr_pvalue)-1.0E-2_r_kind,0.0_r_kind)
+                qnr_tmp=max((cvpnr_pvalue*qnx_arr(j,i,k)+1)**(1/cvpnr_pvalue)-1.0E-2_r_kind,0.0_r_kind)
             else
                 qnr_tmp=qnx_arr(j,i,k)
             end if
 
           end if
-          tmparr_qnr(j,i,k)=qnr_tmp
+          qnx_arr(j,i,k)=qnr_tmp
 
         end do
       end do
     end do
 
-    qnx_arr=tmparr_qnr
 
 end subroutine convert_cvpnx_to_nx
 subroutine gsi_copy_bundle(bundi,bundo) 

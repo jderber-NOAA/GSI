@@ -2220,14 +2220,13 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     character(len=max_varname_length) :: name
     character(len=max_filename_length) :: filenamein2
     real(r_kind),allocatable,dimension(:,:):: uu2d_tmp
-    integer(i_kind) :: countloc_tmp(3),startloc_tmp(3)
 
     integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
     integer(i_kind) ilev,ilevtot,inative
     integer(i_kind) kbgn,kend,len
     logical   :: phy_smaller_domain
     integer(i_kind) gfile_loc,iret,var_id
-    integer(i_kind) nz,nzp1,nx_phy
+    integer(i_kind) nx_phy
 ! for io_layout > 1
     real(r_kind),allocatable,dimension(:,:):: uu2d_layout
     integer(i_kind) :: nio
@@ -2276,27 +2275,9 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
         call stop2(333)
       endif
       ilev=grd_ionouv%lnames(1,ilevtot)
-      nz=grd_ionouv%nsig
-      nzp1=nz+1
-      inative=nzp1-ilev
+      inative=grd_ionouv%nsig+1-ilev
       startloc=(/1,1,inative/)
       countloc=(/nxcase,nycase,1/)
-      ! Variable ref_f3d in phy_data.nc has a smaller domain size than
-      ! dynvariables and tracers as well as a reversed order in vertical
-      if ( trim(adjustl(varname)) == 'ref_f3d' )then
-         iret=nf90_inquire_dimension(gfile_loc,1,name,len)
-         if(trim(name)=='xaxis_1') nx_phy=len
-         if( nx_phy == nxcase )then
-             allocate(uu2d_tmp(nxcase,nycase))
-             countloc_tmp=(/nxcase,nycase,1/)
-             phy_smaller_domain = .false.
-         else
-             allocate(uu2d_tmp(nxcase-6,nycase-6))
-             countloc_tmp=(/nxcase-6,nycase-6,1/)
-             phy_smaller_domain = .true.
-         end if
-         startloc_tmp=(/1,1,ilev/)
-      end if
 
       if(fv3_io_layout_y > 1) then
         do nio=0,fv3_io_layout_y-1
@@ -2310,8 +2291,22 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
       else
         iret=nf90_inq_varid(gfile_loc,trim(adjustl(varname)),var_id)
         if ( trim(adjustl(varname)) == 'ref_f3d' )then
+      ! Variable ref_f3d in phy_data.nc has a smaller domain size than
+      ! dynvariables and tracers as well as a reversed order in vertical
+           iret=nf90_inquire_dimension(gfile_loc,1,name,len)
+           if(trim(name)=='xaxis_1') nx_phy=len
+           if( nx_phy == nxcase )then
+               allocate(uu2d_tmp(nxcase,nycase))
+               countloc=(/nxcase,nycase,1/)
+               phy_smaller_domain = .false.
+           else
+               allocate(uu2d_tmp(nxcase-6,nycase-6))
+               countloc=(/nxcase-6,nycase-6,1/)
+               phy_smaller_domain = .true.
+           end if
+           startloc=(/1,1,ilev/)
            uu2d = 0.0_r_kind
-           iret=nf90_get_var(gfile_loc,var_id,uu2d_tmp,start=startloc_tmp,count=countloc_tmp)
+           iret=nf90_get_var(gfile_loc,var_id,uu2d_tmp,start=startloc,count=countloc)
            where(uu2d_tmp < 0.0_r_kind)
                uu2d_tmp = 0.0_r_kind
            endwhere

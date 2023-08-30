@@ -590,11 +590,18 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs,ig)
 
   ny=grd_loc%nlat ; nx=grd_loc%nlon 
 
-  if(nlevs == 1)then
+!$omp parallel do schedule(static,1) private(k,j,i,l,km)
+  do k=1,nlevs
+
+     if(vvlocal)then
+       km=k
+     else
+       km=1
+     end if
      if(iadvance == 1) then
         do j=1,nx
            do i=1,ny
-              f(i,j,1)=xnorm_new(i,j,1,ig)*f(i,j,1)
+              f(i,j,k)=xnorm_new(i,j,km,ig)*f(i,j,k)
            enddo
         enddo
      end if
@@ -602,84 +609,274 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs,ig)
      do j=1,nx
         do l=1,min(2,j-1)
            do i=1,ny
-              f(i,j,1)=f(i,j,1)-fmatx(i,l,j,iadvance,1,ig)*f(i,j-l,1)
+              f(i,j,k)=f(i,j,k)-fmatx(i,l,j,iadvance,km,ig)*f(i,j-l,k)
            enddo
         enddo
         do i=1,ny
-           f(i,j,1)=fmat0x(i,j,iadvance,1,ig)*f(i,j,1)
+           f(i,j,k)=fmat0x(i,j,iadvance,km,ig)*f(i,j,k)
         enddo
      enddo
 
      do j=nx,1,-1
         do l=1,min(2,nx-j)
            do i=1,ny
-              f(i,j,1)=f(i,j,1)-fmatx(i,l,j+l,iback,1,ig)*f(i,j+l,1)
+              f(i,j,k)=f(i,j,k)-fmatx(i,l,j+l,iback,km,ig)*f(i,j+l,k)
            enddo
         enddo
         do i=1,ny
-           f(i,j,1)=fmat0x(i,j,iback,1,ig)*f(i,j,1)
+           f(i,j,k)=fmat0x(i,j,iback,km,ig)*f(i,j,k)
         enddo
      enddo
-
+ 
      if(iadvance == 2) then
         do j=1,nx
            do i=1,ny
-              f(i,j,1)=xnorm_new(i,j,1,ig)*f(i,j,1)
+              f(i,j,k)=xnorm_new(i,j,km,ig)*f(i,j,k)
+           enddo
+        enddo
+     end if
+  
+  enddo
+  return
+end subroutine new_factorization_rf_x
+subroutine new_factorization_rf_xy(f,iadvance,iback,nlevs,ig)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    new_factorization_rf_x
+!
+!   prgrmmr:  parrish        org: np22                              date: 2009-09-28
+!
+! abstract:  apply new factorization Purser 1-d high-order filter in x (longitude) direction.
+!
+! program history log:
+!   2009-09-28  parrish  initial documentation
+!   2010-02-20  parrish  modifications for dual resolution
+!   2010-03-11  parrish  adjust for possibility that nlevs=0
+!   2014-05-22  wu  modification to allow vertically varying scales
+!
+!   input argument list:
+!     f        - input field to be filtered
+!     iadvance - =1  for forward operator, =2 for adjoint operator
+!     iback    - =2  for forward operator, =1 for adjoint operator
+!     nlevs    - number of vertical levels for smoothing
+!     ig       - number for smoothing scales
+!
+!   output argument list:
+!     f        - filtered output
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use hybrid_ensemble_parameters, only: grd_loc,vvlocal
+  implicit none
+
+  integer(i_kind),intent(in   ) :: iadvance,iback,nlevs,ig
+  real(r_kind)   ,intent(inout) :: f(grd_loc%nlat,grd_loc%nlon,max(nlevs,1))
+
+  integer(i_kind) i,j,k,l,ny,nx,km
+
+  ny=grd_loc%nlat ; nx=grd_loc%nlon 
+
+!$omp parallel do schedule(static,1) private(k,j,i,l,km)
+  do k=1,nlevs
+
+     if(vvlocal)then
+       km=k
+     else
+       km=1
+     end if
+     if(iadvance == 1) then
+        do j=1,nx
+           do i=1,ny
+              f(i,j,k)=xnorm_new(i,j,km,ig)*f(i,j,k)
            enddo
         enddo
      end if
 
-  else
-!$omp parallel do schedule(static,1) private(k,j,i,l,km)
-     do k=1,nlevs
-
-        if(vvlocal)then
-          km=k
-        else
-          km=1
-        end if
-        if(iadvance == 1) then
-           do j=1,nx
-              do i=1,ny
-                 f(i,j,k)=xnorm_new(i,j,km,ig)*f(i,j,k)
-              enddo
-           enddo
-        end if
-   
-        do j=1,nx
-           do l=1,min(2,j-1)
-              do i=1,ny
-                 f(i,j,k)=f(i,j,k)-fmatx(i,l,j,iadvance,km,ig)*f(i,j-l,k)
-              enddo
-           enddo
+     do j=1,nx
+        do l=1,min(2,j-1)
            do i=1,ny
-              f(i,j,k)=fmat0x(i,j,iadvance,km,ig)*f(i,j,k)
+              f(i,j,k)=f(i,j,k)-fmatx(i,l,j,iadvance,km,ig)*f(i,j-l,k)
            enddo
         enddo
-
-        do j=nx,1,-1
-           do l=1,min(2,nx-j)
-              do i=1,ny
-                 f(i,j,k)=f(i,j,k)-fmatx(i,l,j+l,iback,km,ig)*f(i,j+l,k)
-              enddo
-           enddo
-           do i=1,ny
-              f(i,j,k)=fmat0x(i,j,iback,km,ig)*f(i,j,k)
-           enddo
+        do i=1,ny
+           f(i,j,k)=fmat0x(i,j,iadvance,km,ig)*f(i,j,k)
         enddo
-   
-        if(iadvance == 2) then
-           do j=1,nx
-              do i=1,ny
-                 f(i,j,k)=xnorm_new(i,j,km,ig)*f(i,j,k)
-              enddo
-           enddo
-        end if
-   
      enddo
-  endif
+
+     do j=nx,1,-1
+        do l=1,min(2,nx-j)
+           do i=1,ny
+              f(i,j,k)=f(i,j,k)-fmatx(i,l,j+l,iback,km,ig)*f(i,j+l,k)
+           enddo
+        enddo
+        do i=1,ny
+           f(i,j,k)=fmat0x(i,j,iback,km,ig)*f(i,j,k)
+        enddo
+     enddo
+ 
+     if(iadvance == 2) then
+        do j=1,nx
+           do i=1,ny
+              f(i,j,k)=xnorm_new(i,j,km,ig)*f(i,j,k)
+           enddo
+        enddo
+     end if
+  
+     do j=1,nx
+
+        if(iadvance == 1) then
+           do i=1,ny
+              f(i,j,k)=ynorm_new(i,km,ig)*f(i,j,k)
+           enddo
+        end if
+
+        do i=1,ny
+           do l=1,min(2,i-1)
+              f(i,j,k)=f(i,j,k)-fmaty(l,i,iadvance,km,ig)*f(i-l,j,k)
+           enddo
+           f(i,j,k)=fmat0y(i,iadvance,km,ig)*f(i,j,k)
+        enddo
+
+        do i=ny,1,-1
+           do l=1,min(2,ny-i)
+              f(i,j,k)=f(i,j,k)-fmaty(l,i+l,iback,km,ig)*f(i+l,j,k)
+           enddo
+           f(i,j,k)=fmat0y(i,iback,km,ig)*f(i,j,k)
+        enddo
+
+        if(iadvance == 2) then
+           do i=1,ny
+              f(i,j,k)=ynorm_new(i,km,ig)*f(i,j,k)
+           enddo
+        end if
+
+     enddo
+  enddo
   return
-end subroutine new_factorization_rf_x
+end subroutine new_factorization_rf_xy
+
+subroutine new_factorization_rf_yx(f,iadvance,iback,nlevs,ig)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    new_factorization_rf_x
+!
+!   prgrmmr:  parrish        org: np22                              date: 2009-09-28
+!
+! abstract:  apply new factorization Purser 1-d high-order filter in x (longitude) direction.
+!
+! program history log:
+!   2009-09-28  parrish  initial documentation
+!   2010-02-20  parrish  modifications for dual resolution
+!   2010-03-11  parrish  adjust for possibility that nlevs=0
+!   2014-05-22  wu  modification to allow vertically varying scales
+!
+!   input argument list:
+!     f        - input field to be filtered
+!     iadvance - =1  for forward operator, =2 for adjoint operator
+!     iback    - =2  for forward operator, =1 for adjoint operator
+!     nlevs    - number of vertical levels for smoothing
+!     ig       - number for smoothing scales
+!
+!   output argument list:
+!     f        - filtered output
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use hybrid_ensemble_parameters, only: grd_loc,vvlocal
+  implicit none
+
+  integer(i_kind),intent(in   ) :: iadvance,iback,nlevs,ig
+  real(r_kind)   ,intent(inout) :: f(grd_loc%nlat,grd_loc%nlon,max(nlevs,1))
+
+  integer(i_kind) i,j,k,l,ny,nx,km
+
+  ny=grd_loc%nlat ; nx=grd_loc%nlon 
+
+!$omp parallel do schedule(static,1) private(k,j,i,l,km)
+  do k=1,nlevs
+
+     if(vvlocal)then
+       km=k
+     else
+       km=1
+     end if
+     do j=1,nx
+
+        if(iadvance == 1) then
+           do i=1,ny
+              f(i,j,k)=ynorm_new(i,km,ig)*f(i,j,k)
+           enddo
+        end if
+
+        do i=1,ny
+           do l=1,min(2,i-1)
+              f(i,j,k)=f(i,j,k)-fmaty(l,i,iadvance,km,ig)*f(i-l,j,k)
+           enddo
+           f(i,j,k)=fmat0y(i,iadvance,km,ig)*f(i,j,k)
+        enddo
+
+        do i=ny,1,-1
+           do l=1,min(2,ny-i)
+              f(i,j,k)=f(i,j,k)-fmaty(l,i+l,iback,km,ig)*f(i+l,j,k)
+           enddo
+           f(i,j,k)=fmat0y(i,iback,km,ig)*f(i,j,k)
+        enddo
+
+        if(iadvance == 2) then
+           do i=1,ny
+              f(i,j,k)=ynorm_new(i,km,ig)*f(i,j,k)
+           enddo
+        end if
+
+     enddo
+
+     if(iadvance == 1) then
+        do j=1,nx
+           do i=1,ny
+              f(i,j,k)=xnorm_new(i,j,km,ig)*f(i,j,k)
+           enddo
+        enddo
+     end if
+
+     do j=1,nx
+        do l=1,min(2,j-1)
+           do i=1,ny
+              f(i,j,k)=f(i,j,k)-fmatx(i,l,j,iadvance,km,ig)*f(i,j-l,k)
+           enddo
+        enddo
+        do i=1,ny
+           f(i,j,k)=fmat0x(i,j,iadvance,km,ig)*f(i,j,k)
+        enddo
+     enddo
+
+     do j=nx,1,-1
+        do l=1,min(2,nx-j)
+           do i=1,ny
+              f(i,j,k)=f(i,j,k)-fmatx(i,l,j+l,iback,km,ig)*f(i,j+l,k)
+           enddo
+        enddo
+        do i=1,ny
+           f(i,j,k)=fmat0x(i,j,iback,km,ig)*f(i,j,k)
+        enddo
+     enddo
+ 
+     if(iadvance == 2) then
+        do j=1,nx
+           do i=1,ny
+              f(i,j,k)=xnorm_new(i,j,km,ig)*f(i,j,k)
+           enddo
+        enddo
+     end if
+  
+  enddo
+  return
+end subroutine new_factorization_rf_yx
 
 subroutine new_factorization_rf_y(f,iadvance,iback,nlevs,ig)
 !$$$  subprogram documentation block
@@ -722,76 +919,43 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs,ig)
 
   nx=grd_loc%nlon ; ny=grd_loc%nlat
 
-  if(nlevs == 1)then
-!$omp parallel do schedule(static,1) private(j,i,l,km)
-    do j=1,nx
-
-       if(iadvance == 1) then
-          do i=1,ny
-             f(i,j,1)=ynorm_new(i,1,ig)*f(i,j,1)
-          enddo
-       end if
-
-       do i=1,ny
-          do l=1,min(2,i-1)
-             f(i,j,1)=f(i,j,1)-fmaty(l,i,iadvance,1,ig)*f(i-l,j,1)
-          enddo
-          f(i,j,1)=fmat0y(i,iadvance,1,ig)*f(i,j,1)
-       enddo
-
-       do i=ny,1,-1
-          do l=1,min(2,ny-i)
-             f(i,j,1)=f(i,j,1)-fmaty(l,i+l,iback,1,ig)*f(i+l,j,1)
-          enddo
-          f(i,j,1)=fmat0y(i,iback,1,ig)*f(i,j,1)
-       enddo
-
-       if(iadvance == 2) then
-          do i=1,ny
-             f(i,j,1)=ynorm_new(i,1,ig)*f(i,j,1)
-          enddo
-       end if
-
-    enddo
-  else 
 !$omp parallel do schedule(static,1) private(k,j,i,l,km)
-     do k=1,nlevs
-        if(vvlocal)then
-          km=k
-        else
-          km=1
-        end if
-        do j=1,nx
-   
-           if(iadvance == 1) then
-              do i=1,ny
-                 f(i,j,k)=ynorm_new(i,km,ig)*f(i,j,k)
-              enddo
-           end if
+  do k=1,nlevs
+     if(vvlocal)then
+       km=k
+     else
+       km=1
+     end if
+     do j=1,nx
 
+        if(iadvance == 1) then
            do i=1,ny
-              do l=1,min(2,i-1)
-                 f(i,j,k)=f(i,j,k)-fmaty(l,i,iadvance,km,ig)*f(i-l,j,k)
-              enddo
-              f(i,j,k)=fmat0y(i,iadvance,km,ig)*f(i,j,k)
+              f(i,j,k)=ynorm_new(i,km,ig)*f(i,j,k)
            enddo
+        end if
 
-           do i=ny,1,-1
-              do l=1,min(2,ny-i)
-                 f(i,j,k)=f(i,j,k)-fmaty(l,i+l,iback,km,ig)*f(i+l,j,k)
-              enddo
-              f(i,j,k)=fmat0y(i,iback,km,ig)*f(i,j,k)
+        do i=1,ny
+           do l=1,min(2,i-1)
+              f(i,j,k)=f(i,j,k)-fmaty(l,i,iadvance,km,ig)*f(i-l,j,k)
            enddo
-
-           if(iadvance == 2) then
-              do i=1,ny
-                 f(i,j,k)=ynorm_new(i,km,ig)*f(i,j,k)
-              enddo
-           end if
-
+           f(i,j,k)=fmat0y(i,iadvance,km,ig)*f(i,j,k)
         enddo
+
+        do i=ny,1,-1
+           do l=1,min(2,ny-i)
+              f(i,j,k)=f(i,j,k)-fmaty(l,i+l,iback,km,ig)*f(i+l,j,k)
+           enddo
+           f(i,j,k)=fmat0y(i,iback,km,ig)*f(i,j,k)
+        enddo
+
+        if(iadvance == 2) then
+           do i=1,ny
+              f(i,j,k)=ynorm_new(i,km,ig)*f(i,j,k)
+           enddo
+        end if
+
      enddo
-  endif
+  enddo
   return
 end subroutine new_factorization_rf_y
 
@@ -831,12 +995,11 @@ subroutine normal_new_factorization_rf_z
 
   if(allocated(znorm_new)) deallocate(znorm_new)
   allocate(znorm_new(grd_ens%latlon11,grd_ens%nsig,naensloc))
-
   znorm_new=one
 
-  do ig=1,naensgrp
-!$omp parallel do schedule(static,1) private(k,f,iadvance,iback)
-     do k=1,grd_ens%nsig
+!$omp parallel do schedule(static,1) private(k,f,ig,iadvance,iback)
+  do k=1,grd_ens%nsig
+     do ig=1,naensgrp
         f=zero
         f(:,k)=one
 
@@ -846,9 +1009,8 @@ subroutine normal_new_factorization_rf_z
         call new_factorization_rf_z(f,iadvance,iback,ig)
         
         znorm_new(:,k,ig)=sqrt(one/f(:,k))
-     enddo
-
-  enddo !ig loop
+     enddo !ig loop
+  enddo
 
 ! Check result:
   if(debug)then
@@ -1019,7 +1181,6 @@ subroutine normal_new_factorization_rf_y
 
   if(allocated(ynorm_new)) deallocate(ynorm_new)
   allocate(ynorm_new(grd_loc%nlat,kl,naensloc))
-
 
   ynorm_new=one
 
@@ -2053,6 +2214,7 @@ end subroutine normal_new_factorization_rf_y
              do ig=1,ntotensgrp
                 iaens=ensgrp2aensgrp(ig,ic2+nc3d,ibin)
                 if(iaens>0) then
+!$omp parallel do schedule(static,1) private(j,n,k,i)
                    do n=1,n_ens
                       do k=1,km_tmp
                          do j=1,jm
@@ -2071,6 +2233,7 @@ end subroutine normal_new_factorization_rf_y
              do ig=1,ntotensgrp
                 iaens=ensgrp2aensgrp(ig,ic2+nc3d,ibin)
                 if(iaens>0) then
+!$omp parallel do schedule(static,1) private(j,n,k,i)
                    do n=1,n_ens
                       do j=1,jm
                          do i=1,im
@@ -3614,7 +3777,7 @@ subroutine bkerror_a_en(grady)
 ! Declare local variables
   integer(i_kind) ii,ip,istatus,k,ig,ig2
   real(r_kind),allocatable,dimension(:,:) :: z
-  real(r_kind),allocatable,dimension(:) :: z2
+  real(r_kind),allocatable,dimension(:,:) :: z2
 
 ! Initialize timer
   call timer_ini('bkerror_a_en')
@@ -3636,19 +3799,22 @@ subroutine bkerror_a_en(grady)
      end do
   else
      allocate(z(nval_lenz_en,naensgrp))
-     allocate(z2(nval_lenz_en))
+     allocate(z2(nval_lenz_en,naensgrp))
      do ii=1,nsubwin
         do ig=1,naensgrp
            call ckgcov_a_en_new_factorization_ad(ig,z(1,ig),grady%aens(ii,ig,1:n_ens))
         enddo
+!$omp parallel do schedule(static,1) private(ig,ig2,k)
         do ig=1,naensgrp
-           z2=zero
+           z2(:,ig)=zero
            do ig2=1,naensgrp
               do k=1,nval_lenz_en
-                 z2(k) = z2(k) + z(k,ig2) * alphacvarsclgrpmat(ig2,ig)  
+                 z2(k,ig) = z2(k,ig) + z(k,ig2) * alphacvarsclgrpmat(ig2,ig)  
               enddo
            enddo
-           call ckgcov_a_en_new_factorization(ig,z2,grady%aens(ii,ig,1:n_ens))
+        end do
+        do ig=1,naensgrp
+           call ckgcov_a_en_new_factorization(ig,z2(1,ig),grady%aens(ii,ig,1:n_ens))
         enddo
      enddo
      deallocate(z,z2)
@@ -3707,28 +3873,19 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
   type(gsi_bundle),intent(inout) :: a_en(n_ens)
 
 ! Local Variables
-  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,k,iadvance,iback,is,ie
   real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_kind),allocatable,dimension(:):: a_en_work
 
-  call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
-  if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
-     call stop2(999)
-  endif
 
 ! Apply vertical smoother on each ensemble member
 ! To avoid my having to touch the general sub2grid and grid2sub,
 ! get copy for ensemble components to work array
-  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
-  if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
-     call stop2(999)
-  endif
+  allocate(a_en_work(n_ens*a_en(1)%ndim))
   iadvance=1 ; iback=2
 !$omp parallel do schedule(static,1) private(k,ii,is,ie)
   do k=1,n_ens
-     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+     call new_factorization_rf_z(a_en(k)%r3(1)%q,iadvance,iback,ig)
      ii=(k-1)*a_en(1)%ndim
      is=ii+1
      ie=ii+a_en(1)%ndim
@@ -3741,11 +3898,9 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
 ! Apply horizontal smoother for number of horizontal scales
   if(regional) then
      iadvance=1 ; iback=2
-     call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-     call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+     call new_factorization_rf_xy(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
      iadvance=2 ; iback=1
-     call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-     call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+     call new_factorization_rf_yx(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
   else
      call sf_xy(ig,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
   end if
@@ -3762,7 +3917,7 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
      is=ii+1
      ie=ii+a_en(1)%ndim
      a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
-     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+     call new_factorization_rf_z(a_en(k)%r3(1)%q,iadvance,iback,ig)
   enddo
   deallocate(a_en_work)
 
@@ -3809,7 +3964,7 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
   real(r_kind),dimension(nval_lenz_en),intent(in   ) :: z
 
 ! Local Variables
-  integer(i_kind) k,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) k,iadvance,iback,is,ie,nlevs
   real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
 !NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
 !      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
@@ -3819,14 +3974,10 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
 !    which just happens to match up with nval_lenz_en for regional case, but not global.
   real(r_kind),allocatable,dimension(:):: a_en_work
 
-  call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
-  if(istatus/=0) then
-     write(6,*)'ckgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
-     call stop2(999)
-  endif
+  iadvance=2 ; iback=1
+  nlevs = grd_loc%kend_loc+1-grd_loc%kbegin_loc
 
-
-  if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
+  if(nlevs==0) then
 !     no work to be done on this processor, but hwork still has allocated space, since
 !                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
      hwork=zero
@@ -3835,9 +3986,7 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
      if(regional) then
 ! Make a copy of input variable z to hwork
         hwork=z
-        iadvance=2 ; iback=1
-        call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-        call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+        call new_factorization_rf_yx(hwork,iadvance,iback,nlevs,ig)
      else
 #ifdef LATER
         call sqrt_sf_xy(ig,z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
@@ -3848,29 +3997,24 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
   end if
 
 ! Put back onto subdomains
-  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
-  if(istatus/=0) then
-     write(6,*)'ckgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
-     call stop2(999)
-  endif
+  allocate(a_en_work(n_ens*a_en(1)%ndim))
+
   call general_grid2sub(grd_loc,hwork,a_en_work)
 
-! Retrieve ensemble components from long vector
+
+!$omp parallel do schedule(static,1) private(k,is,ie)
   do k=1,n_ens
+
+! Retrieve ensemble components from long vector
      is=(k-1)*a_en(1)%ndim+1
      ie=k*a_en(1)%ndim
      a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
-  enddo
-  deallocate(a_en_work)
 
 ! Apply vertical smoother on each ensemble member
-  iadvance=2 ; iback=1
-!$omp parallel do schedule(static,1) private(k)
-  do k=1,n_ens
-
-     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+     call new_factorization_rf_z(a_en(k)%r3(1)%q,iadvance,iback,ig)
 
   enddo
+  deallocate(a_en_work)
 
   return
 end subroutine ckgcov_a_en_new_factorization
@@ -3920,7 +4064,7 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
   real(r_kind),dimension(nval_lenz_en),intent(inout) :: z
 
 ! Local Variables
-  integer(i_kind) k,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) k,iadvance,iback,is,ie,nlevs
   real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
 !NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
 !      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
@@ -3930,29 +4074,18 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
 !    which just happens to match up with nval_lenz_en for regional case, but not global.
   real(r_kind),allocatable,dimension(:):: a_en_work
 
-  call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
-  if(istatus/=0) then
-     write(6,*)'ckgcov_a_en_new_factorization_ad: trouble getting pointer to ensemble CV'
-     call stop2(999)
-  endif
+  allocate(a_en_work(n_ens*a_en(1)%ndim))
+
+  iadvance=1 ; iback=2
+  nlevs = grd_loc%kend_loc+1-grd_loc%kbegin_loc
+!$omp parallel do schedule(static,1) private(k,is,ie)
+  do k=1,n_ens
 
 ! Apply vertical smoother on each ensemble member
-  iadvance=1 ; iback=2
-!$omp parallel do schedule(static,1) private(k)
-  do k=1,n_ens
-
-     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+     call new_factorization_rf_z(a_en(k)%r3(1)%q,iadvance,iback,ig)
  
-  enddo
-
 ! To avoid my having to touch the general sub2grid and grid2sub,
 ! get copy for ensemble components to work array
-  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
-  if(istatus/=0) then
-     write(6,*)'ckgcov_a_en_new_factorization_ad: trouble in alloc(a_en_work)'
-     call stop2(999)
-  endif
-  do k=1,n_ens
      is=(k-1)*a_en(1)%ndim+1
      ie=k*a_en(1)%ndim
      a_en_work(is:ie)=a_en(k)%values(1:a_en(k)%ndim)
@@ -3962,16 +4095,14 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
   call general_sub2grid(grd_loc,a_en_work,hwork)
   deallocate(a_en_work)
 
-  if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
+  if(nlevs==0) then
 !     no work to be done on this processor, but z still has allocated space, since
 !                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
      z=zero
   else
 ! Apply horizontal smoother for number of horizontal scales
      if(regional) then
-        iadvance=1 ; iback=2
-        call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-        call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+        call new_factorization_rf_xy(hwork,iadvance,iback,nlevs,ig)
         z=hwork
      else
         call sqrt_sf_xy_ad(ig,z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)

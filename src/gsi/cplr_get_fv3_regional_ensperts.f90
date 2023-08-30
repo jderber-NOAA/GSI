@@ -49,7 +49,7 @@ contains
   !$$$ end documentation block
   
      use kinds, only: r_kind,i_kind,r_single
-     use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
+     use constants, only: zero,one,half,zero_single,one_tenth
      use mpimod, only: mpi_comm_world,ierror,mype,npe
      use hybrid_ensemble_parameters, only: n_ens,grd_ens,parallelization_over_ensmembers
      use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_fv3sar
@@ -97,14 +97,14 @@ contains
      real(r_kind),pointer,dimension(:,:):: x2 =>NULL()
      type(gsi_bundle),allocatable,dimension(:):: en_bar
      type(gsi_grid):: grid_ens
-     real(r_kind):: bar_norm,sig_norm,kapr,kap1
+     real(r_kind):: bar_norm,sig_norm
 
      character(len=64),dimension(:,:),allocatable:: names
      character(len=64),dimension(:,:),allocatable:: uvnames
      integer(i_kind),dimension(:,:),allocatable:: lnames
      integer(i_kind),dimension(:,:),allocatable:: uvlnames
  
-     integer(i_kind):: i,j,k,n,mm1,istatus
+     integer(i_kind):: i,j,k,n,istatus
      integer(i_kind):: ndynvario2d,ntracerio2d
      integer(r_kind):: ndynvario3d,ntracerio3d,nphyvario3d
      integer(i_kind):: inner_vars,numfields
@@ -220,11 +220,18 @@ contains
        ilev=ilev+1
     enddo
    
+    if( parallelization_over_ensmembers ) then
+       if(n_ens_fv3sar>npe) then
+          parallelization_over_ensmembers=.false.
+130       format('Disabling parallelization_over_ensmembers because number of ensemble members (',I0,') is greater than number of MPI ranks (',I0,').')
+          if(mype==0) then
+             write(6,130) n_ens_fv3sar,npe
+          endif
+       endif
+    endif ! parallelization_over_ensmembers
 
     call general_sub2grid_create_info(grd_fv3lam_ens_tracer_io_nouv,inner_vars,grd_ens%nlat,&
          grd_ens%nlon,grd_ens%nsig,numfields,regional,names=names,lnames=lnames)
-
-
 
 
 
@@ -277,15 +284,10 @@ contains
 
         if(mype == 0) then
            do n_fv3sar=1,n_ens_fv3sar
-              write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n_fv3sar
  ! DEFINE INPUT FILE NAME
-              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
-              fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
+              write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n_fv3sar
               fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
-              fv3_filename%phyvars=trim(ensfilenam_str)//'-fv3_phyvars'
               fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
-              fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
-              fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
 
               call nc_check(nf90_open(fv3_filename%dynvars,nf90_nowrite,loc_id), &
               "nf90 open ",trim(fv3_filename%dynvars))
@@ -323,28 +325,18 @@ contains
         en_bar(m)%values=zero
  
         do n=imem_start,n_ens
-           en_perts(n,1,m)%valuesr4 = zero
+           en_perts(n,1,m)%valuesr4 = zero_single
         enddo
  
-        mm1=mype+1
-        kap1=rd_over_cp+one
-        kapr=one/rd_over_cp
 
         if( parallelization_over_ensmembers ) then
-         if(n_ens_fv3sar>npe) then
-            parallelization_over_ensmembers=.false.
-130         format('Disabling parallelization_over_ensmembers because number of ensemble members (',I0,') is greater than number of MPI ranks (',I0,').')
-            if(mype==0) then
-               write(6,130) n_ens_fv3sar,npe
-            endif
-         endif
-         if(parallelization_over_ensmembers .and. mype==0) then
-             write(6,'(I0,A)') mype,': will read ensemble data in parallel (parallelization_over_ensmembers=.true.)'
-         endif
         endif ! parallelization_over_ensmembers
 
 
         if( parallelization_over_ensmembers )then
+           if(mype==0) then
+               write(6,*) mype,': will read ensemble data in parallel (parallelization_over_ensmembers=.true.) m = ', m
+           endif
            iread_data= 0
            do n=1,n_ens_fv3sar
               iope=(n-1)*npe/n_ens_fv3sar
@@ -383,11 +375,7 @@ contains
                                                     g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_dbz=gg_dbz)
               end if
            end if
-           if(mype==0) then
-              write(6,'(I0,A)') mype,': reading ensemble data in parallel is done (parallelization_over_ensmembers=.true.)'
-           endif
         end if
-!       call MPI_Barrier(mpi_comm_world,ierror)
  !
  ! LOOP OVER ENSEMBLE MEMBERS 
         do n_fv3sar=1,n_ens_fv3sar
@@ -433,8 +421,10 @@ contains
                        ps,u,v,tv,rh,gg_ps,gg_tv,gg_u,gg_v,gg_rh)
                  if(mype == iope)deallocate(gg_ps,gg_tv,gg_u,gg_v,gg_rh)
               endif
+              if(mype==0) then
+                 write(6,'(I0,A)') mype,': reading ensemble data in parallel is done (parallelization_over_ensmembers=.true.)'
+              endif
 
-!             call MPI_Barrier(mpi_comm_world,ierror)
            end if
 
  ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
@@ -455,157 +445,76 @@ contains
  
                  case('sf','SF')
     
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = u(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+u(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = u
+                    x3 = x3+u
  
                  case('vp','VP')
  
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = v(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+v(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = v
+                    x3 = x3+v
  
                  case('t','T')
  
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = tv(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+tv(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = tv
+                    x3 = x3+tv
  
                  case('q','Q')
  
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = rh(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+rh(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = rh
+                    x3 = x3+rh
  
 ! save additional ensemble varaible data for direct reflectivity DA
 
                  case('ql','QL')
 
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = ql(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+ql(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = ql
+                    x3 = x3+ql
 
                  case('qi','QI')
 
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = qi(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+qi(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = qi
+                    x3 = x3+qi
 
                  case('qr','QR')
 
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = qr(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+qr(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = qr
+                    x3 = x3+qr
 
                  case('qs','QS')
 
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = qs(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+qs(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = qs
+                    x3 = x3+qs
 
                  case('qg','QG')
 
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = qg(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+qg(j,i,k)
-                          end do
-                       end do
-                    end do
+                    w3 = qg
+                    x3 = x3+qg
 
                  case('qnr','QNR')
 
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                      do k=1,grd_ens%nsig
-                         do i=1,grd_ens%lon2
-                            do j=1,grd_ens%lat2
-                               if ( l_use_dbz_directDA ) then ! direct reflectivity DA
-                                  if ( cld_nt_updt > 0 ) then ! Update Nc 
-                                     w3(j,i,k) = qnr(j,i,k)
-                                     x3(j,i,k)=x3(j,i,k)+qnr(j,i,k)
-                                  end if
-                               else     ! .not. l_use_dbz_directDA
-                                  w3(j,i,k) = qnr(j,i,k)
-                                  x3(j,i,k)=x3(j,i,k)+qnr(j,i,k)
-                               end if
-                            end do
-                         end do
-                      end do
+                    if ( l_use_dbz_directDA ) then ! direct reflectivity DA
+                       if ( cld_nt_updt > 0 ) then ! Update Nc 
+                          w3 = qnr
+                          x3 = x3+qnr
+                       else
+                          w3=zero
+                       end if
+                    else     ! .not. l_use_dbz_directDA
+                       w3 = qnr
+                       x3 = x3+qnr
+                    end if
 
                  case('w','W')
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = w(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+w(j,i,k)
-                          end do
-                       end do
-                    end do
+
+                    w3 = w
+                    x3 = x3+w
 
                  case('dbz','DBZ')
-!$omp parallel do  schedule(static,1) private(i,j,k)
-                    do k=1,grd_ens%nsig
-                       do i=1,grd_ens%lon2
-                          do j=1,grd_ens%lat2
-                             w3(j,i,k) = dbz(j,i,k)
-                             x3(j,i,k)=x3(j,i,k)+dbz(j,i,k)
-                          end do
-                       end do
-                    end do
-              end select
 
-       
+                    w3 = dbz
+                    x3 = x3+dbz
+
+              end select
 
            end do
  
@@ -626,22 +535,13 @@ contains
  
                  case('ps','PS')
  
-                    do i=1,grd_ens%lon2
-                       do j=1,grd_ens%lat2
-                          w2(j,i) = ps(j,i)
-                          x2(j,i)=x2(j,i)+ps(j,i)
-                       end do
-                    end do
+                    w2 = ps
+                    x2 = x2+ps
  
                  case('sst','SST')
  ! IGNORE SST IN HYBRID for now
  
-                    do i=1,grd_ens%lon2
-                       do j=1,grd_ens%lat2
-                          w2(j,i) = zero
-                          x2(j,i)=zero
-                       end do
-                    end do
+                    w2 = zero
  
               end select
            end do
@@ -653,26 +553,27 @@ contains
  
  ! Copy pbar to module array.  ps_bar may be needed for vertical localization
  ! in terms of scale heights/normalized p/p
-        do ic2=1,nc2d
+        if(allocated(ps_bar))then
+           do ic2=1,nc2d
   
-           if(trim(cvars2d(ic2)) == 'ps'.or.trim(cvars2d(ic2)) == 'PS') then
+              if(trim(cvars2d(ic2)) == 'ps'.or.trim(cvars2d(ic2)) == 'PS') then
  
-              call gsi_bundlegetpointer(en_bar(m),trim(cvars2d(ic2)),x2,istatus)
-              if(istatus/=0) then
-                 write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar to get ps_bar'
-                 call stop2(9996)
-              end if
+                 call gsi_bundlegetpointer(en_bar(m),trim(cvars2d(ic2)),x2,istatus)
+                 if(istatus/=0) then
+                    write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar to get ps_bar'
+                    call stop2(9996)
+                 end if
   
-              do i=1,grd_ens%lon2
-                 do j=1,grd_ens%lat2
-                    ps_bar(j,i,1)=x2(j,i)
+                 do i=1,grd_ens%lon2
+                    do j=1,grd_ens%lat2
+                       ps_bar(j,i,1)=x2(j,i)
+                    end do
                  end do
-              end do
-              exit
-           end if
-        end do
+                 exit
+              end if
+           end do
+        end if
  
-!       call mpi_barrier(mpi_comm_world,ierror)
  !
  !
  ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
@@ -690,7 +591,6 @@ contains
 !   write_ens_sprd=.true.
     if(write_ens_sprd ) then
         call this%ens_spread_dualres_regional(mype,en_perts,nelen)
-        call mpi_barrier(mpi_comm_world,ierror) ! do we need this mpi_barrier here? 
     endif
     do m=1,ntlevs_ens
       call gsi_bundledestroy(en_bar(m),istatus)

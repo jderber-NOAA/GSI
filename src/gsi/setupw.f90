@@ -271,7 +271,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
   real(r_kind) dudiff_opp, dvdiff_opp, vecdiff, vecdiff_opp
   real(r_kind) dudiff_opp_rs, dvdiff_opp_rs, vecdiff_rs, vecdiff_opp_rs
-  real(r_kind) oscat_vec,ascat_vec,rapidscat_vec
+  real(r_kind) oscat_vec
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
@@ -503,17 +503,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      ikx=nint(data(ikxx,i))
 
      if(in_curbin) then
-        dlat=data(ilat,i)
-        dlon=data(ilon,i)
-        rstation_id     = data(id,i)
-        error=data(ier2,i)
-        var_jb=data(ijb,i)
         if(ikx < 1 .or. ikx > nconvtype) then
            num_bad_ikx=num_bad_ikx+1
            if(num_bad_ikx<=10) write(6,*)' in setupw, bad ikx, ikx,i,nconvtype=',ikx,i,nconvtype,mype
            cycle
         end if
-        isli = data(idomsfc,i)
      endif
 
      if(ikx < 1 .or. ikx > nconvtype) cycle
@@ -529,13 +523,13 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
      ! Flag static conditions to turn pbl_pseudo_surfobs on
      l_pbl_pseudo_itype = l_PBL_pseudo_SurfobsUV .and.        &
                           ( itype==281 .or. itype==283 .or.itype==287 )
 
      if (luse_obsdiag) then
+        my_diagLL => odiagLL(ibin)
         my_diagu => null()
         my_diagv => null()
         my_diagu_pbl => null()
@@ -577,6 +571,12 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      obserror = max(cermin(ikx),min(cermax(ikx),data(ier,i)))
      uob = data(iuob,i)
      vob = data(ivob,i)
+     dlat=data(ilat,i)
+     dlon=data(ilon,i)
+     rstation_id     = data(id,i)
+     error=data(ier2,i)
+     var_jb=data(ijb,i)
+     isli = data(idomsfc,i)
      spdob=sqrt(uob*uob+vob*vob)
      call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
           mype,nfldsig)
@@ -591,11 +591,15 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !    If height is not bad (less than r0_1_bmiss), we use height in the
 !    forward model.  Otherwise, use reported pressure.
 
-     z_height = .false.
-     if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
-     if ((itype==261) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
-     if (itype == 218) z_height = .true.
-
+     if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r0_1_bmiss)) then
+        z_height = .true.
+     else if ((itype==261) .and. (data(ihgt,i)<r0_1_bmiss)) then
+        z_height = .true.
+     else if (itype == 218) then
+        z_height = .true.
+     else
+        z_height = .false.
+     end if
 
 !    Process observations reported with height differently than those
 !    reported with pressure.  Type 223=profiler and 224=vadwnd are 
@@ -633,30 +637,32 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !       For observation reported with geometric height above sea level,
 !       convert geopotential to geometric height.
 
-        if (((itype>=223 .and. itype<=228) .or. itype == 218 .or. sfc_data) .and. .not.twodvar_regional) then
-!          Convert geopotential height at layer midpoints to geometric 
-!          height using equations (17, 20, 23) in MJ Mahoney's note 
-!          "A discussion of various measures of altitude" (2001).  
-!          Available on the web at
-!          http://mtp.jpl.nasa.gov/notes/altitude/altitude.html
-!
-!          termg  = equation 17
-!          termr  = equation 21
-!          termrg = first term in the denominator of equation 23
-!          zges  = equation 23
-
-           slat = data(ilate,i)*deg2rad
-           sin2  = sin(slat)*sin(slat)
-           termg = grav_equator * &
-                ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
-           termr = semi_major_axis /(one + flattening + grav_ratio -  &
-                two*flattening*sin2)
-           termrg = (termg/grav)*termr
-           do k=1,nsig
-              zges(k) = (termr*zges(k)) / (termrg-zges(k))  ! eq (23)
-           end do
-        else if (twodvar_regional) then
+        if (twodvar_regional) then
            zges(1) = ten
+        else
+           if ((itype>=223 .and. itype<=228) .or. itype == 218 .or. sfc_data ) then
+!             Convert geopotential height at layer midpoints to geometric 
+!             height using equations (17, 20, 23) in MJ Mahoney's note 
+!             "A discussion of various measures of altitude" (2001).  
+!             Available on the web at
+!             http://mtp.jpl.nasa.gov/notes/altitude/altitude.html
+!
+!             termg  = equation 17
+!             termr  = equation 21
+!             termrg = first term in the denominator of equation 23
+!             zges  = equation 23
+
+              slat = data(ilate,i)*deg2rad
+              sin2  = sin(slat)*sin(slat)
+              termg = grav_equator * &
+                ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
+              termr = semi_major_axis /(one + flattening + grav_ratio -  &
+                two*flattening*sin2)
+              termrg = (termg/grav)*termr
+              do k=1,nsig
+                 zges(k) = (termr*zges(k)) / (termrg-zges(k))  ! eq (23)
+              end do
+           end if
         endif
 
 !       Given observation height, (1) adjust 10 meter wind factor if
@@ -708,13 +714,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            dhx_dx_v%val = dhx_dx_u%val
         endif
 
-        msonetob=itype==288.or.itype==295
 
         if (zob <= zero .and. twodvar_regional) zob=ten !trap for stations with negative zob
 
-        if (zob > zges(1)) then
-           factw=one
-        else
+        factw=one
+        if (zob <= zges(1)) then
            factw = data(iff10,i)
            if(sfcmod_gfs .or. sfcmod_mm5) then
               sfcr = data(isfcr,i)
@@ -724,6 +728,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
            if (zob <= ten) then
               if(zob < ten)then
+                 msonetob=itype==288.or.itype==295
                  if (msonetob .and. twodvar_regional .and. use_similarity_2dvar) then
                     if (neutral_stability_windfact_2dvar) then
                        sfcr = data(isfcr,i)
@@ -893,15 +898,13 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      endif
      dudiff=uob-ugesin
      dvdiff=vob-vgesin
-     spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
     
 !    Setup dynamic ob error specification for aircraft recon in hurricanes 
      if (aircraft_recon) then
        if (itype==236) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
          ratio_errors=error/((uv_doe_a_236*magomb+uv_doe_b_236)+drpx+1.0e6_r_kind*rhgh+four*rlow)
-       endif
-       if (itype==237) then
+       else if (itype==237) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
          ratio_errors=error/((uv_doe_a_237*magomb+uv_doe_b_237)+drpx+1.0e6_r_kind*rhgh+four*rlow)
        endif
@@ -920,34 +923,33 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
      endif
 
-     if ( (itype>=221 .and. itype<=229).and. (dpres<zero) ) ratio_errors=zero
+     if(itype < 240)then
+
+        if ( (itype>=221 .and. itype<=229).and. (dpres<zero) ) ratio_errors=zero
 
 
-! QC PBL profiler  227 and 223, 224
-     if(itype==227 .or. itype==223 .or. itype==224 .or. itype==228 .or. itype==229) then
-        if(abs(uob) < 1.0_r_kind .and. abs(vob) <1.0_r_kind )  then
-           muse(i)=.false.
+!    QC PBL profiler  227 and 223, 224
+        if(itype==227 .or. itype==223 .or. itype==224 .or. itype==228 .or. itype==229) then
+           if(abs(uob) < 1.0_r_kind .and. abs(vob) <1.0_r_kind )  then
+              muse(i)=.false.
+              error=zero
+           endif
+        endif
+
+!       VADWND and aircraft winds quality control
+        if( itype ==224 .and. presw < 226.0_r_kind) then
+           error=zero
+        else if(itype >=230 .and. itype <=239 .and.  presw <126.0_r_kind ) then
            error=zero
         endif
-     endif
 
-!    VADWND and aircraft winds quality control
-     if( itype ==224 .and. presw < 226.0_r_kind) then
-        error=zero
-     endif
-     if(itype >=230 .and. itype <=239 .and.  presw <126.0_r_kind ) then
-        error=zero
-     endif
+!       Quality control for satellite winds
 
-!    Quality control for satellite winds
-
-     if ( qc_satwnds ) then
+     else if ( qc_satwnds .and. itype < 280) then
         if (itype >=240 .and. itype <=260) then
            call intrp2a11(tropprs,trop5,dlat,dlon,mype)
            if(presw < trop5-r50) error=zero            ! tropopose check for all satellite winds 
-        endif  
-   
-        if(itype >=240 .and. itype <=260) then
+  
            if(i_gsdqc==2) then
               prsfc = r10*psges
               if( prsfc-presw < 100.0_r_kind) error =zero ! add check for obs within 100 hPa of sfc
@@ -955,167 +957,164 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               if( presw >950.0_r_kind) error =zero       ! screen data beloww 950mb
            endif
         endif
-        if(itype ==242 .or. itype ==243 ) then  !  visible winds from JMA and EUMETSAT
-           if(presw <700.0_r_kind) error=zero    !  no visible winds above 700mb
-        endif
-        if(itype ==245 ) then
-           if( presw >399.0_r_kind .and. presw <801.0_r_kind) then  !GOES IR  winds
-              error=zero                          !  no data between 400-800mb
-           endif
-        endif
-        if(itype == 252 .and. presw >499.0_r_kind .and. presw <801.0_r_kind) then  ! JMA IR winds
+        if(itype ==242 .or. itype ==243 .and. presw < 700.0) then  !  visible winds from JMA and EUMETSAT
+           error=zero    !  no visible winds above 700mb
+        else if(itype ==245 .and. presw >399.0_r_kind .and. presw <801.0_r_kind) then  !GOES IR  winds
+           error=zero                          !  no data between 400-800mb
+        else if(itype == 252 .and. presw >499.0_r_kind .and. presw <801.0_r_kind) then  ! JMA IR winds
            error=zero
-        endif
-        if(itype == 253 )  then
-           if(presw >401.0_r_kind .and. presw <801.0_r_kind) then  ! EUMET IR winds
-              error=zero
-           endif
-        endif
-        if( itype == 246 .or. itype == 250 .or. itype == 254 )   then     ! water vapor cloud top
+        else if(itype == 253 .and. presw >401.0_r_kind .and. presw <801.0_r_kind) then  ! EUMET IR winds
+           error=zero
+        else if( itype == 246 .or. itype == 250 .or. itype == 254 )   then     ! water vapor cloud top
            if(presw >399.0_r_kind) error=zero
-        endif
-        if(itype ==257 .and. presw <249.0_r_kind) error=zero
-        if(itype ==258 .and. presw >600.0_r_kind) error=zero
-        if(itype ==259 .and. presw >600.0_r_kind) error=zero
-        if(itype ==259 .and. presw <249.0_r_kind) error=zero
-     endif ! qc_satwnds
+        else if(itype ==257 .and. presw <249.0_r_kind) then
+           error=zero
+        else if(itype ==258 .and. presw >600.0_r_kind) then
+           error=zero
+        else if(itype ==259 .and. presw >600.0_r_kind) then
+           error=zero
+        else if(itype ==259 .and. presw <249.0_r_kind) then
+           error=zero
+        end if
 
-!    QC GOES CAWV - some checks above as well
-     if (itype==247) then
-        prsfc = r10*psges       ! surface pressure in hPa
+!       QC GOES CAWV - some checks above as well
+        if (itype==247) then
 
-!       Compute observed and guess wind speeds (m/s).  
-        spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
+!          Set and compute GOES CAWV specific departure parameters
+           if( .not. wrf_nmm_regional) then   ! LNVD check not use for CAWV winds in HWRF
+              prsfc = r10*psges       ! surface pressure in hPa
+              if(presw > prsfc-110.0_r_kind .and. isli /= 0)then ! near surface check 110 ~1km
+                 error = zero
+              else
+                 LNVD_wspd = spdob
+                 LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+                 LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+                 LNVD_threshold = 3.0_r_kind
+                 if(LNVD_ratio >= LNVD_threshold)then      ! LNVD check
+                    error = zero
+                 else
+                    wdirdiffmax=50._r_kind
+                    call getwdir(uob,vob,wdirob)
+                    call getwdir(ugesin,vgesin,wdirgesin)
+                    if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
+                             abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
+                       error = zero
+                    endif
+                 endif
+              endif
+           endif
+! check for direction departure gt 50 deg 
+!          QC MODIS winds
+        else if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
+!          Get guess values of tropopause pressure and sea/land/ice
+!          mask at observation location
+           prsfc = r10*prsfc       ! surface pressure in hPa
+ 
+           if(presw > prsfc-r200 .and. isli /= 0)then ! near surface check
+              error =zero
+           else
+!             Set and computes modis specific qc parameters
+              LNVD_wspd = spdob
+              LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+              LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+              LNVD_threshold = 3.0_r_kind
+              if(LNVD_ratio >= LNVD_threshold ) then      ! LNVD check
+                 error = zero
+              end if
+           endif
 
-!       Set and compute GOES CAWV specific departure parameters
-        LNVD_wspd = spdob
-        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
-        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
-        LNVD_threshold = 3.0_r_kind
-        if( .not. wrf_nmm_regional) then   ! LNVD check not use for CAWV winds in HWRF
-           if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
-              (presw > prsfc-110.0_r_kind .and. isli /= 0))then ! near surface check 110 ~1km
+!       QC AVHRR winds
+        else if (itype==244) then
+!          Get guess values of tropopause pressure and sea/land/ice
+!          mask at observation location
+           prsfc = r10*prsfc       ! surface pressure in hPa
+
+           if(presw > prsfc-r200 .and. isli /= 0)then ! near surface check
+              error = zero
+           else
+!             Set and computes modis specific qc parameters
+              LNVD_wspd = spdob
+              LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+              LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+              LNVD_threshold = 3.0_r_kind
+
+              if(LNVD_ratio >= LNVD_threshold) then      ! LNVD check
+                 error = zero
+              end if
+           endif
+        endif ! qc_satwnds
+     
+     else
+
+!       QC WindSAT winds
+        if (itype==289) then
+           qcu = r6
+           qcv = r6
+           if ( spdob > r20 .or. &          ! high wind speed check
+                abs(dudiff) > qcu  .or. &   ! u component check
+                abs(dvdiff) > qcv ) then    ! v component check
               error = zero
            endif
-        endif
-! check for direction departure gt 50 deg 
-        wdirdiffmax=50._r_kind
-        call getwdir(uob,vob,wdirob)
-        call getwdir(ugesin,vgesin,wdirgesin)
-        if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
-                 abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
-           error = zero
-        endif
-     endif
-   
-!    QC MODIS winds
-     if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
-!       Get guess values of tropopause pressure and sea/land/ice
-!       mask at observation location
-        prsfc = r10*prsfc       ! surface pressure in hPa
 
-!       Compute observed and guess wind speeds (m/s).  
-        spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
- 
-!       Set and computes modis specific qc parameters
-        LNVD_wspd = spdob
-        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
-        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
-        LNVD_threshold = 3.0_r_kind
-        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
-            (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
-           error = zero
-        endif
-     endif ! ???
+!       QC ASCAT winds
+        else if (itype==290) then
+           qcu = five
+           qcv = five
+!          Compute innovations for opposite vectors
 
-!    QC AVHRR winds
-     if (itype==244) then
-!       Get guess values of tropopause pressure and sea/land/ice
-!       mask at observation location
-        prsfc = r10*prsfc       ! surface pressure in hPa
+           if ( abs(dudiff) > qcu  .or. &       ! u component check
+                abs(dvdiff) > qcv )then         ! v component check
+              error = zero
+           else
+              dudiff_opp = -uob - ugesin
+              dvdiff_opp = -vob - vgesin
+              vecdiff = sqrt(dudiff**2 + dvdiff**2)
+              vecdiff_opp = sqrt(dudiff_opp**2 + dvdiff_opp**2)
+              if(vecdiff > vecdiff_opp ) then    ! ambiguity check
+                 error = zero
+              end if
+           endif
 
-!       Set and computes modis specific qc parameters
-        LNVD_wspd = spdob
-        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
-        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
-        LNVD_threshold = 3.0_r_kind
+!       QC RAPIDSCAT winds
+        else if (itype==296) then
+           qcu = five
+           qcv = five
+!          Compute innovations for opposite vectors
+           if ( abs(dudiff) > qcu  .or. &       ! u component check
+                abs(dvdiff) > qcv  )then        ! v component check
+              error = zero
+           else
+              dudiff_opp_rs = -uob - ugesin
+              dvdiff_opp_rs = -vob - vgesin
+              vecdiff_rs = sqrt(dudiff**2 + dvdiff**2)
+              vecdiff_opp_rs = sqrt(dudiff_opp_rs**2 + dvdiff_opp_rs**2)
+              if( vecdiff_rs > vecdiff_opp_rs ) then    ! ambiguity check
+                 error = zero
+              end if
+           endif
 
-        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
-            (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
-           error = zero
-        endif
-     endif                                                  ! end if all satellite winds
-     
+!       QC OSCAT winds     
+        else if (itype==291) then
+           qcu = r6
+           qcv = r6
 
-!    QC WindSAT winds
-     if (itype==289) then
-        qcu = r6
-        qcv = r6
-        if ( spdob > r20 .or. &          ! high wind speed check
-             abs(dudiff) > qcu  .or. &   ! u component check
-             abs(dvdiff) > qcv ) then    ! v component check
-           error = zero
-        endif
-     endif
+!           if ( spdob > r20 .or. &          ! high wind speed check
+!                abs(dudiff) > qcu  .or. &   ! u component check
+!                oscat_vec > r0_1 .or. &
+!                abs(dvdiff) > qcv ) then    ! v component check
+!              error = zero
+!           else
+!              write(6,2000) "999291291", data(ilate,i), &
+!                         data(ilone,i), uob, vob, ugesin, vgesin, &
+!                         jiter 
+!           endif
 
-!    QC ASCAT winds
-     if (itype==290) then
-        qcu = five
-        qcv = five
-!       Compute innovations for opposite vectors
-        dudiff_opp = -uob - ugesin
-        dvdiff_opp = -vob - vgesin
-        vecdiff = sqrt(dudiff**2 + dvdiff**2)
-        vecdiff_opp = sqrt(dudiff_opp**2 + dvdiff_opp**2)
-        ascat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)       
-
-        if ( abs(dudiff) > qcu  .or. &       ! u component check
-             abs(dvdiff) > qcv  .or. &       ! v component check
-             vecdiff > vecdiff_opp ) then    ! ambiguity check
- 
-           error = zero
-        endif
-     endif
-
-!    QC RAPIDSCAT winds
-     if (itype==296) then
-        qcu = five
-        qcv = five
-!       Compute innovations for opposite vectors
-        dudiff_opp_rs = -uob - ugesin
-        dvdiff_opp_rs = -vob - vgesin
-        vecdiff_rs = sqrt(dudiff**2 + dvdiff**2)
-        vecdiff_opp_rs = sqrt(dudiff_opp_rs**2 + dvdiff_opp_rs**2)
-        rapidscat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
-        if ( abs(dudiff) > qcu  .or. &       ! u component check
-             abs(dvdiff) > qcv  .or. &       ! v component check
-             vecdiff_rs > vecdiff_opp_rs ) then    ! ambiguity check
-           error = zero
-        endif
-     endif
-
-!    QC OSCAT winds     
-     if (itype==291) then
-        qcu = r6
-        qcv = r6
-        oscat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
-
-!        if ( spdob > r20 .or. &          ! high wind speed check
-!             abs(dudiff) > qcu  .or. &   ! u component check
-!             oscat_vec > r0_1 .or. &
-!             abs(dvdiff) > qcv ) then    ! v component check
-!           error = zero
-!        else
-!           write(6,2000) "999291291", data(ilate,i), &
-!                      data(ilone,i), uob, vob, ugesin, vgesin, &
-!                      jiter 
-!        endif
-
-        if (spdob > r20 .or. &
-            abs(dudiff) > qcu .or. &
-            oscat_vec > r0_1 .or. &
-            abs(dvdiff) > qcv) then                                               
-           error = zero
+           if (spdob > r20 .or. abs(dudiff) > qcu .or. abs(dvdiff) > qcv) then                                    
+              error = zero
+           else
+              oscat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
+              if(oscat_vec > r0_1) error = zero
+           endif
         endif
      endif
 
@@ -1148,17 +1147,15 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         qcgross=r0_7*cgross(ikx)
      endif
 
-     if(spdb <0 )then
+     spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
+     if(spdb <0  .and. itype > 240 .and. itype < 280)then
         if(itype ==244) then   ! AVHRR, use same as MODIS
           qcgross=r0_7*cgross(ikx)
-        endif
-        if( itype == 245 .or. itype ==246) then
+        else if( itype == 245 .or. itype ==246) then
            if(presw <400.0_r_kind .and. presw >300.0_r_kind ) qcgross=r0_7*cgross(ikx)
-        endif
-        if(itype == 253 .or. itype ==254) then
+        else if(itype == 253 .or. itype ==254) then
            if( presw <400.0_r_kind .and. presw >200.0_r_kind) qcgross=r0_7*cgross(ikx)
-        endif
-        if(itype >=257 .and. itype <=259 ) then
+        else if(itype >=257 .and. itype <=259 ) then
           qcgross=r0_7*cgross(ikx)
         endif
      endif
@@ -1171,17 +1168,17 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         ratio_errors = ratio_errors/sqrt(dup(i))
      end if
 
-     if (lowlevelsat .and. twodvar_regional) then
-        if (data(idomsfc,i) /= 0 .and. data(idomsfc,i) /= 3 ) then
-           error = zero
-           ratio_errors = zero
-        endif
-     endif
 
      if (twodvar_regional) then
+        if (lowlevelsat) then
+           if (data(idomsfc,i) /= 0 .and. data(idomsfc,i) /= 3 ) then
+              error = zero
+              ratio_errors = zero
+           endif
+        endif
         if (lowlevelsat .or. itype==289 .or. itype==290) then
-            wdirdiffmax=45._r_kind
-          else
+           wdirdiffmax=45._r_kind
+        else
            wdirdiffmax=100000._r_kind
         endif
         if (spdob > zero .and. (spdob-spdb) > zero) then
@@ -1332,9 +1329,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         my_head%ik=ikapa(ikx)
         my_head%luse=luse(i)
 !        if( i==3) print *,'SETUPW',my_head%ures,my_head%vres,my_head%err2
-
-        if (luse_obsdiag) then
-        endif ! (luse_obsdiag)
 
         if(oberror_tune) then
            my_head%upertb=data(iptrbu,i)/error/ratio_errors

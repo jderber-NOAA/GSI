@@ -4329,7 +4329,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
 
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
-    character(len=max_varname_length) :: filenamein2 
+    character(len=max_filename_length) :: filenamein2 
 
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot

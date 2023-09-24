@@ -807,6 +807,8 @@ subroutine new_factorization_rf_yx(f,iadvance,iback,nlevs,ig)
        km=1
      end if
      do j=1,nx
+!$omp parallel do schedule(static,1) private(k,j,i,l)
+     do k=1,nz
 
         if(iadvance == 1) then
            do i=1,ny
@@ -2364,6 +2366,7 @@ end subroutine normal_new_factorization_rf_y
                 enddo
              endif ! iaens>0
           enddo
+
           do ic2=1,nc2d
              iaens=ensgrp2aensgrp(ig,ic2+nc3d,ibin)
              if(iaens>0) then
@@ -3777,7 +3780,7 @@ subroutine bkerror_a_en(grady)
 ! Declare local variables
   integer(i_kind) ii,ip,istatus,k,ig,ig2
   real(r_kind),allocatable,dimension(:,:) :: z
-  real(r_kind),allocatable,dimension(:,:) :: z2
+  real(r_kind),allocatable,dimension(:) :: z2
 
 ! Initialize timer
   call timer_ini('bkerror_a_en')
@@ -3799,22 +3802,19 @@ subroutine bkerror_a_en(grady)
      end do
   else
      allocate(z(nval_lenz_en,naensgrp))
-     allocate(z2(nval_lenz_en,naensgrp))
+     allocate(z2(nval_lenz_en))
      do ii=1,nsubwin
         do ig=1,naensgrp
            call ckgcov_a_en_new_factorization_ad(ig,z(1,ig),grady%aens(ii,ig,1:n_ens))
         enddo
-!$omp parallel do schedule(static,1) private(ig,ig2,k)
         do ig=1,naensgrp
-           z2(:,ig)=zero
+           z2=zero
            do ig2=1,naensgrp
               do k=1,nval_lenz_en
-                 z2(k,ig) = z2(k,ig) + z(k,ig2) * alphacvarsclgrpmat(ig2,ig)  
+                 z2(k) = z2(k) + z(k,ig2) * alphacvarsclgrpmat(ig,ig2)  
               enddo
            enddo
-        end do
-        do ig=1,naensgrp
-           call ckgcov_a_en_new_factorization(ig,z2(1,ig),grady%aens(ii,ig,1:n_ens))
+           call ckgcov_a_en_new_factorization(ig,z2,grady%aens(ii,ig,1:n_ens))
         enddo
      enddo
      deallocate(z,z2)
@@ -3877,6 +3877,7 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
   real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_kind),allocatable,dimension(:):: a_en_work
 
+  ipnt=1
 
 ! Apply vertical smoother on each ensemble member
 ! To avoid my having to touch the general sub2grid and grid2sub,
@@ -4011,7 +4012,11 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
      a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
 
 ! Apply vertical smoother on each ensemble member
-     call new_factorization_rf_z(a_en(k)%r3(1)%q,iadvance,iback,ig)
+  iadvance=2 ; iback=1
+!$omp parallel do schedule(static,1) private(k)
+  do k=1,n_ens
+
+     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
 
   enddo
   deallocate(a_en_work)
@@ -4076,13 +4081,12 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
 
   allocate(a_en_work(n_ens*a_en(1)%ndim))
 
+! Apply vertical smoother on each ensemble member
   iadvance=1 ; iback=2
-  nlevs = grd_loc%kend_loc+1-grd_loc%kbegin_loc
-!$omp parallel do schedule(static,1) private(k,is,ie)
+!$omp parallel do schedule(static,1) private(k)
   do k=1,n_ens
 
-! Apply vertical smoother on each ensemble member
-     call new_factorization_rf_z(a_en(k)%r3(1)%q,iadvance,iback,ig)
+     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
  
 ! To avoid my having to touch the general sub2grid and grid2sub,
 ! get copy for ensemble components to work array

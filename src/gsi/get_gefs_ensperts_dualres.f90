@@ -186,10 +186,11 @@ subroutine get_gefs_ensperts_dualres
        do k=1,km
           do j=1,jm
              do i=1,im
-!  Use following lines for results identical to previous version
+!  Use following 3 lines for results identical to previous version
 !               tv(i,j,k)= tv(i,j,k)*(one+fv*q(i,j,k))
 !               q(i,j,k)=max(q(i,j,k),zero)
 !               tsen(i,j,k)=tv(i,j,k)/(one+fv*q(i,j,k))
+!  Remove following 3 lines for results identical to previous version
                 q(i,j,k)=max(q(i,j,k),zero)
                 tsen(i,j,k)=tv(i,j,k)
                 tv(i,j,k)= tsen(i,j,k)*(one+fv*q(i,j,k))

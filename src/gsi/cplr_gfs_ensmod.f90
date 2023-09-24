@@ -269,6 +269,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle,iret)
 
     end if
     if(mype==0) write(6,*) ' reading time level ',ntindex 
+    m_cvars2dw=-999
+    m_cvars3dw=-999
 
 !!  read ensembles
 
@@ -322,18 +324,21 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle,iret)
 
     if(ntindex == ntlevs_ens)call genex_destroy_info(s_a2b)  
 
-    allocate(sloc(grd_ens%lat2,grd_ens%lon2,grd_ens%num_fields))
+    call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
+
+
+    allocate(sloc(grd3d%lat2,grd3d%lon2,grd3d%num_fields))
     iretx=0
 !$omp parallel do  schedule(dynamic,1) private(n,k,j,i,sloc) 
     do n=1,n_ens
-       do k=1,grd_ens%num_fields
-          do j=1,grd_ens%lon2
-             do i=1,grd_ens%lat2
+       do k=1,grd3d%num_fields
+          do j=1,grd3d%lon2
+             do i=1,grd3d%lat2
                 sloc(i,j,k)=en_loc(i+ibsm-1,j+jbsm-1,k,n)
              enddo
           enddo
        enddo
-       call move2bundle_(grd_ens,sloc,atm_bundle(n),m_cvars2d,m_cvars3d,iretx(n))
+       call move2bundle_(grd3d,sloc,atm_bundle(n),m_cvars2d,m_cvars3d,iretx(n))
     enddo
     iret=iretx(1)
     do n=2,n_ens
@@ -463,6 +468,29 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
 end subroutine move2bundle_
 
+subroutine create_grd23d_(grd23d,nvert)
+
+    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
+    use hybrid_ensemble_parameters, only: grd_ens
+
+    implicit none
+
+    ! Declare local parameters
+
+    ! Declare passed variables
+    type(sub2grid_info), intent(inout) :: grd23d
+    integer(i_kind),     intent(in   ) :: nvert
+
+    ! Declare local variables
+    integer(i_kind) :: inner_vars = 1
+    logical :: regional = .false.
+
+    call general_sub2grid_create_info(grd23d,inner_vars,grd_ens%nlat,grd_ens%nlon, &
+                                      nvert,nvert,regional,s_ref=grd_ens)
+
+end subroutine create_grd23d_
+
+>>>>>>> develop
 subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
 
 !     do computation on all processors, then assign final local processor
@@ -518,7 +546,7 @@ subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i
 
 end subroutine ens_io_partition_
 
-subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
+subroutine parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsig, &
                                         ias,jas,mas, &
                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                         filename,init_head,filenamesfc)
@@ -540,7 +568,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    integer(i_kind),  intent(in   ) :: nlon,nlat,nsig
    integer(i_kind),  intent(in   ) :: ias,jas,mas
    integer(i_kind),  intent(in   ) :: iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz
-   integer(i_kind),  intent(inout) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
+   integer(i_kind),  intent(inout) :: m_cvars2dw(nc2d),m_cvars3d(nc3d)
    real(r_single),   intent(inout) :: en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz)
    character(len=*), intent(in   ) :: filename
    character(len=*), optional, intent(in) :: filenamesfc
@@ -729,11 +757,19 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
       m_cvars3d(k3)=kf+1
       do k=1,nsig
          kf=kf+1
+<<<<<<< HEAD
          do j=1,nlon
+=======
+         jj=jas
+         do j=1,nlon
+            jj=jj+1
+            ii=ias
+>>>>>>> develop
             do i=1,nlat
                en_full(ias+i,jas+j,kf,mas)=temp3(i,j,k,k3)
             enddo
          enddo
+<<<<<<< HEAD
          do i=1,nlat
             en_full(ias+i,jasm,kf,mas)=en_full(ias+i,jaem-1,kf,mas)
             en_full(ias+i,jaem,kf,mas)=en_full(ias+i,jasm+1,kf,mas)
@@ -741,6 +777,19 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
          do j=jasm,jaem
            en_full(iasm,j,kf,mas)=en_full(iasm+1,j,kf,mas)
            en_full(iaem,j,kf,mas)=en_full(iaem-1,j,kf,mas)
+=======
+         ii=ias
+         do i=1,nlat
+            ii=ii+1
+            en_full(ii,jasm,kf,mas)=en_full(ii,jaem-1,kf,mas)
+            en_full(ii,jaem,kf,mas)=en_full(ii,jasm+1,kf,mas)
+         enddo
+         jj=jas-1
+         do j=jasm,jaem
+           jj=jj+1
+           en_full(iasm,jj,kf,mas)=en_full(iasm+1,jj,kf,mas)
+           en_full(iaem,jj,kf,mas)=en_full(iaem-1,jj,kf,mas)
+>>>>>>> develop
          end do
       enddo
    enddo
@@ -770,13 +819,21 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
 
 !  move temp2 to en_full
    do k2=1,nc2d
-      m_cvars2d(k2)=kf+1
+      m_cvars2dw(k2)=kf+1
       kf=kf+1
+<<<<<<< HEAD
       do j=1,nlon
+=======
+      jj=jas
+      do j=1,nlon
+         jj=jj+1
+         ii=ias
+>>>>>>> develop
          do i=1,nlat
             en_full(ias+i,jas+j,kf,mas)=temp2(i,j,k2)
          enddo
       enddo
+<<<<<<< HEAD
       do i=1,nlat
          en_full(ias+i,jasm,kf,mas)=en_full(ias+i,jaem-1,kf,mas)
          en_full(ias+i,jaem,kf,mas)=en_full(ias+i,jasm+1,kf,mas)
@@ -784,6 +841,19 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
       do j=jasm,jaem
         en_full(iasm,j,kf,mas)=en_full(iasm+1,j,kf,mas)
         en_full(iaem,j,kf,mas)=en_full(iaem-1,j,kf,mas)
+=======
+      ii=ias
+      do i=1,nlat
+         ii=ii+1
+         en_full(ii,jasm,kf,mas)=en_full(ii,jaem-1,kf,mas)
+         en_full(ii,jaem,kf,mas)=en_full(ii,jasm+1,kf,mas)
+      enddo
+      jj=jas-1
+      do j=jasm,jaem
+        jj=jj+1
+        en_full(iasm,jj,kf,mas)=en_full(iasm+1,jj,kf,mas)
+        en_full(iaem,jj,kf,mas)=en_full(iaem-1,jj,kf,mas)
+>>>>>>> develop
       end do
    enddo
 
@@ -791,7 +861,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
 
 end subroutine parallel_read_nemsio_state_
 
-subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
+subroutine parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsig, &
                                         ias,jas,mas, &
                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                         filename)
@@ -819,7 +889,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    integer(i_kind),  intent(in   ) :: nlon,nlat,nsig
    integer(i_kind),  intent(in   ) :: ias,jas,mas
    integer(i_kind),  intent(in   ) :: iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz
-   integer(i_kind),  intent(inout) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
+   integer(i_kind),  intent(inout) :: m_cvars2dw(nc2d),m_cvars3d(nc3d)
    real(r_single),   intent(inout) :: en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz)
    character(len=*), intent(in   ) :: filename
 
@@ -942,11 +1012,19 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       m_cvars3d(k3)=kf+1
       do k=1,nsig
          kf=kf+1
+<<<<<<< HEAD
          do j=1,nlon
+=======
+         jj=jas
+         do j=1,nlon
+            jj=jj+1
+            ii=ias
+>>>>>>> develop
             do i=1,nlat
                en_full(ias+i,jas+j,kf,mas)=temp3(i,j,k,k3)
             enddo
          enddo
+<<<<<<< HEAD
          do i=1,nlat
             en_full(ias+i,jasm,kf,mas)=en_full(ias+i,jaem-1,kf,mas)
             en_full(ias+i,jaem,kf,mas)=en_full(ias+i,jasm+1,kf,mas)
@@ -954,6 +1032,19 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          do j=jasm,jaem
            en_full(iasm,j,kf,mas)=en_full(iasm+1,j,kf,mas)
            en_full(iaem,j,kf,mas)=en_full(iaem-1,j,kf,mas)
+=======
+         ii=ias
+         do i=1,nlat
+            ii=ii+1
+            en_full(ii,jasm,kf,mas)=en_full(ii,jaem-1,kf,mas)
+            en_full(ii,jaem,kf,mas)=en_full(ii,jasm+1,kf,mas)
+         enddo
+         jj=jas-1
+         do j=jasm,jaem
+           jj=jj+1
+           en_full(iasm,jj,kf,mas)=en_full(iasm+1,jj,kf,mas)
+           en_full(iaem,jj,kf,mas)=en_full(iaem-1,jj,kf,mas)
+>>>>>>> develop
          end do
       enddo
    enddo
@@ -970,6 +1061,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
 
 !  move temp2 to en_full
          kf=kf+1
+<<<<<<< HEAD
          m_cvars2d(k2)=kf
          do j=1,nlon
             do i=1,nlat
@@ -983,6 +1075,29 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          do j=jasm,jaem
            en_full(iasm,j,kf,mas)=en_full(iasm+1,j,kf,mas)
            en_full(iaem,j,kf,mas)=en_full(iaem-1,j,kf,mas)
+=======
+         m_cvars2dw(k2)=kf
+         jj=jas
+         do j=1,nlon
+            jj=jj+1
+            ii=ias
+            do i=1,nlat
+               ii=ii+1
+               en_full(ii,jj,kf,mas)=temp2(i,j)
+            enddo
+         enddo
+         ii=ias
+         do i=1,nlat
+            ii=ii+1
+            en_full(ii,jasm,kf,mas)=en_full(ii,jaem-1,kf,mas)
+            en_full(ii,jaem,kf,mas)=en_full(ii,jasm+1,kf,mas)
+         enddo
+         jj=jas-1
+         do j=jasm,jaem
+           jj=jj+1
+           en_full(iasm,jj,kf,mas)=en_full(iasm+1,jj,kf,mas)
+           en_full(iaem,jj,kf,mas)=en_full(iaem-1,jj,kf,mas)
+>>>>>>> develop
          end do
       end if
    enddo
